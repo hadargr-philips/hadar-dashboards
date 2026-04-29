@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PI2_26 Client Group Epics Snapshot</title>
+  <style>
+    :root {
+      --blue:    #0072c6;
+      --green:   #2e7d32;
+      --orange:  #e65100;
+      --gray:    #555;
+      --bg:      #f5f7fa;
+      --card-bg: #ffffff;
+      --border:  #dde3eb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: #222;
+      padding: 32px 24px;
+    }
+
+    header {
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    header .meta {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: var(--gray);
+    }
+
+    .summary-bar {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 22px;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    .summary-card .count {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .summary-card .label {
+      font-size: 0.78rem;
+      color: var(--gray);
+      margin-top: 2px;
+    }
+
+    .filter-info {
+      background: #e8f0fe;
+      border-left: 4px solid var(--blue);
+      border-radius: 4px;
+      padding: 10px 16px;
+      font-size: 0.82rem;
+      color: #333;
+      margin-bottom: 28px;
+    }
+
+    .filter-info code {
+      background: #d2e3fc;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.8rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    thead th {
+      background: var(--blue);
+      color: #fff;
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody tr:hover { background: #f0f5ff; }
+
+    td {
+      padding: 12px 16px;
+      font-size: 0.88rem;
+      vertical-align: middle;
+    }
+
+    td.key a {
+      color: var(--blue);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    td.key a:hover { text-decoration: underline; }
+
+    td.summary { max-width: 420px; }
+
+    .badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-team {
+      background: #e8f0fe;
+      color: #1a56d1;
+    }
+
+    .status-open        { background: #e0e0e0; color: #333; }
+    .status-inprogress  { background: #fff3cd; color: #7a5200; }
+    .status-done        { background: #d4edda; color: var(--green); }
+    .status-closed      { background: #d4edda; color: var(--green); }
+
+    footer {
+      margin-top: 28px;
+      font-size: 0.78rem;
+      color: var(--gray);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>PI2_26 — Client Group Epics Snapshot</h1>
+  <div class="meta">
+    Snapshot date: <strong>April 29, 2026</strong> &nbsp;|&nbsp;
+    PI: <strong>PI2_26</strong> &nbsp;|&nbsp;
+    Group: <strong>Client</strong> (DVA, DVB, DVC, DVD, DVE, DX)
+  </div>
+</header>
+
+<div class="filter-info">
+  JQL: <code>issuetype = Epic AND cf[18300] = "PI2_26" AND cf[12002] in ("DVA","DVB","DVC","DVD","DVE","DX")</code>
+  &nbsp;·&nbsp; Source: <a href="https://jiranew.vuernd.philips.com" target="_blank">jiranew.vuernd.philips.com</a>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-card">
+    <div class="count">9</div>
+    <div class="label">Total Epics</div>
+  </div>
+  <div class="summary-card">
+    <div class="count">8</div>
+    <div class="label">Open</div>
+  </div>
+  <div class="summary-card">
+    <div class="count">1</div>
+    <div class="label">In Progress</div>
+  </div>
+  <div class="summary-card">
+    <div class="count">4</div>
+    <div class="label">Teams Involved</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Key</th>
+      <th>Summary</th>
+      <th>Status</th>
+      <th>Team</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-198945" target="_blank">ALGCQ-198945</a></td>
+      <td class="summary">PI2_26 | DVC | Tech Debt</td>
+      <td><span class="badge status-inprogress">In Progress</span></td>
+      <td><span class="badge badge-team">DVC</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-198212" target="_blank">ALGCQ-198212</a></td>
+      <td class="summary">DVAS health check</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DX</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-197947" target="_blank">ALGCQ-197947</a></td>
+      <td class="summary">Log cleanup</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVB</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-197522" target="_blank">ALGCQ-197522</a></td>
+      <td class="summary">Remove 1:1 dependency of DVAS:DA node</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVB</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-195542" target="_blank">ALGCQ-195542</a></td>
+      <td class="summary">WDV: Float Windowing Phase 2</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVB</span></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-195329" target="_blank">ALGCQ-195329</a></td>
+      <td class="summary">AI Deep Integration for RSNA 2026 - phase 1</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVC</span></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-194864" target="_blank">ALGCQ-194864</a></td>
+      <td class="summary">Performance Monitoring - Backlog</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVD</span></td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-192675" target="_blank">ALGCQ-192675</a></td>
+      <td class="summary">Upgrade WebView2 Component</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVB</span></td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td class="key"><a href="https://jiranew.vuernd.philips.com/browse/ALGCQ-186182" target="_blank">ALGCQ-186182</a></td>
+      <td class="summary">Mammo Performance: improve switching panel time and other performance improvements</td>
+      <td><span class="badge status-open">Open</span></td>
+      <td><span class="badge badge-team">DVC</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  Generated on April 29, 2026 &nbsp;·&nbsp; PI2_26 Client Group Epics &nbsp;·&nbsp; hadar-dashboards
+</footer>
+
+</body>
+</html>
