@@ -303,6 +303,68 @@
     .t-dve { background: #e8f5e9; color: var(--dve); }
     .t-dx  { background: #fbe9e7; color: var(--dx);  }
 
+    /* ── REFRESH BAR ─────────────────────────────────────────── */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 40px;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--gray);
+      flex-wrap: wrap;
+    }
+
+    .refresh-bar .updated {
+      flex: 1;
+    }
+
+    #refreshBtn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    #refreshBtn:hover:not(:disabled) { background: var(--blue-light); }
+
+    #refreshBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #refreshBtn .spin {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-banner {
+      background: #fdecea;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      font-size: 0.83rem;
+      display: none;
+    }
+
     /* ── FOOTER ──────────────────────────────────────────────── */
     footer {
       text-align: center;
@@ -318,30 +380,37 @@
 <div class="topbar">
   <h1>PI2_26 — Client Group Epics Dashboard</h1>
   <div class="subtitle">
-    <span class="tag">📅 Snapshot: April 29, 2026</span>
-    <span class="tag">🗺 PI: PI2_26</span>
+    <span class="tag">� PI: PI2_26</span>
     <span class="tag">👥 Group: Client (DVA · DVB · DVC · DVD · DVE · DX)</span>
   </div>
 </div>
 
+<!-- REFRESH BAR -->
+<div class="refresh-bar">
+  <span class="updated">Last updated: <strong id="lastUpdated">—</strong></span>
+  <button id="refreshBtn">↻ Refresh</button>
+</div>
+
 <div class="content">
+
+  <div id="errorBanner" class="error-banner"></div>
 
   <!-- KPI CARDS -->
   <div class="kpi-row">
     <div class="kpi">
-      <span class="num">9</span>
+      <span class="num" id="kpiTotal">—</span>
       <span class="label">Total Epics</span>
     </div>
     <div class="kpi open">
-      <span class="num">8</span>
+      <span class="num" id="kpiOpen">—</span>
       <span class="label">Open</span>
     </div>
     <div class="kpi progress">
-      <span class="num">1</span>
+      <span class="num" id="kpiProgress">—</span>
       <span class="label">In Progress</span>
     </div>
     <div class="kpi teams">
-      <span class="num">4</span>
+      <span class="num" id="kpiTeams">—</span>
       <span class="label">Teams Active</span>
     </div>
   </div>
@@ -393,24 +462,23 @@
 </div>
 
 <footer>
-  Generated on April 29, 2026 · PI2_26 Client Group Epics · hadar-dashboards
+  PI2_26 Client Group Epics · hadar-dashboards · Data auto-refreshed by GitHub Actions
 </footer>
 
 <script>
-  // ── Data ──────────────────────────────────────────────────────────────
-  const JIRA_BASE = "https://jiranew.vuernd.philips.com/browse/";
+  // ── Constants ─────────────────────────────────────────────────────────
+  const JIRA_BASE  = "https://jiranew.vuernd.philips.com/browse/";
+  const TEAM_ORDER = ["DVA","DVB","DVC","DVD","DVE","DX"];
+  const TEAM_COLORS = {
+    DVA: "#7c3aed", DVB: "#1565c0", DVC: "#0277bd",
+    DVD: "#00695c", DVE: "#2e7d32", DX:  "#d84315"
+  };
 
-  const epics = [
-    { key: "ALGCQ-198945", summary: "PI2_26 | DVC | Tech Debt",                                              status: "In Progress", team: "DVC" },
-    { key: "ALGCQ-198212", summary: "DVAS health check",                                                     status: "Open",        team: "DX"  },
-    { key: "ALGCQ-197947", summary: "Log cleanup",                                                           status: "Open",        team: "DVB" },
-    { key: "ALGCQ-197522", summary: "Remove 1:1 dependency of DVAS:DA node",                                 status: "Open",        team: "DVB" },
-    { key: "ALGCQ-195542", summary: "WDV: Float Windowing Phase 2",                                          status: "Open",        team: "DVB" },
-    { key: "ALGCQ-195329", summary: "AI Deep Integration for RSNA 2026 - phase 1",                           status: "Open",        team: "DVC" },
-    { key: "ALGCQ-194864", summary: "Performance Monitoring - Backlog",                                      status: "Open",        team: "DVD" },
-    { key: "ALGCQ-192675", summary: "Upgrade WebView2 Component",                                            status: "Open",        team: "DVB" },
-    { key: "ALGCQ-186182", summary: "Mammo Performance: improve switching panel time and other performance improvements", status: "Open", team: "DVC" },
-  ];
+  // ── State ─────────────────────────────────────────────────────────────
+  let epics   = [];
+  let sortCol = null;
+  let sortDir = 1;
+  let statusChart, teamChart;
 
   // ── Helpers ───────────────────────────────────────────────────────────
   function statusClass(s) {
@@ -421,13 +489,29 @@
 
   function teamClass(t) { return "t-" + t.toLowerCase().replace(/[^a-z]/g, ""); }
 
-  // ── Table render ──────────────────────────────────────────────────────
-  let sortCol  = null;
-  let sortDir  = 1; // 1 asc, -1 desc
+  function fmtDate(iso) {
+    if (!iso || iso === "—") return "—";
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
 
+  // ── KPI update ───────────────────────────────────────────────────────
+  function updateKPIs() {
+    const open     = epics.filter(e => e.status === "Open").length;
+    const progress = epics.filter(e => e.status === "In Progress").length;
+    const teams    = new Set(epics.map(e => e.team)).size;
+    document.getElementById("kpiTotal").textContent    = epics.length;
+    document.getElementById("kpiOpen").textContent     = open;
+    document.getElementById("kpiProgress").textContent = progress;
+    document.getElementById("kpiTeams").textContent    = teams;
+  }
+
+  // ── Table ─────────────────────────────────────────────────────────────
   function renderTable(rows) {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = rows.map((e, i) => `
+    document.getElementById("tableBody").innerHTML = rows.map((e, i) => `
       <tr>
         <td class="num-col">${i + 1}</td>
         <td class="key-col"><a href="${JIRA_BASE}${e.key}" target="_blank" rel="noreferrer">${e.key}</a></td>
@@ -439,111 +523,128 @@
 
   function sortedEpics() {
     if (!sortCol) return [...epics];
-    return [...epics].sort((a, b) => {
-      const va = a[sortCol] || "";
-      const vb = b[sortCol] || "";
-      return va.localeCompare(vb) * sortDir;
-    });
+    return [...epics].sort((a, b) =>
+      (a[sortCol] || "").localeCompare(b[sortCol] || "") * sortDir
+    );
   }
 
-  // Column sort
   document.querySelectorAll("thead th[data-col]").forEach(th => {
     th.addEventListener("click", () => {
       const col = th.dataset.col;
-      if (sortCol === col) {
-        sortDir *= -1;
-      } else {
-        sortCol = col;
-        sortDir = 1;
-      }
+      sortDir = (sortCol === col) ? -sortDir : 1;
+      sortCol = col;
       document.querySelectorAll("thead th").forEach(h => h.classList.remove("asc", "desc"));
       th.classList.add(sortDir === 1 ? "asc" : "desc");
       renderTable(sortedEpics());
     });
   });
 
-  renderTable(epics);
+  // ── Charts ───────────────────────────────────────────────────────────
+  function buildCharts() {
+    const statusCounts = epics.reduce((a, e) => {
+      a[e.status] = (a[e.status] || 0) + 1;
+      return a;
+    }, {});
+    const teamCounts = epics.reduce((a, e) => {
+      a[e.team] = (a[e.team] || 0) + 1;
+      return a;
+    }, {});
+    const teams  = TEAM_ORDER.filter(t => teamCounts[t]);
+    const counts = teams.map(t => teamCounts[t]);
 
-  // ── Status Donut ──────────────────────────────────────────────────────
-  new Chart(document.getElementById("statusChart"), {
-    type: "doughnut",
-    data: {
-      labels: ["Open", "In Progress"],
-      datasets: [{
-        data: [8, 1],
-        backgroundColor: ["#cfd8dc", "#fcd34d"],
-        borderColor:     ["#90a4ae", "#f59e0b"],
-        borderWidth: 2,
-        hoverOffset: 6,
-      }]
-    },
-    options: {
-      cutout: "68%",
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: { font: { size: 12 }, padding: 14, usePointStyle: true }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} epic${ctx.parsed !== 1 ? "s" : ""}`
-          }
-        }
-      }
-    }
-  });
+    // Status donut
+    const statusLabels = Object.keys(statusCounts);
+    const statusData   = statusLabels.map(l => statusCounts[l]);
+    const statusPalette = { Open: "#cfd8dc", "In Progress": "#fcd34d", Done: "#a5d6a7", Closed: "#a5d6a7" };
+    const statusBorder  = { Open: "#90a4ae", "In Progress": "#f59e0b", Done: "#66bb6a",  Closed: "#66bb6a" };
 
-  // ── Team Bar ──────────────────────────────────────────────────────────
-  const teamCounts = epics.reduce((acc, e) => {
-    acc[e.team] = (acc[e.team] || 0) + 1;
-    return acc;
-  }, {});
-
-  const teamOrder = ["DVA","DVB","DVC","DVD","DVE","DX"];
-  const teams  = teamOrder.filter(t => teamCounts[t]);
-  const counts = teams.map(t => teamCounts[t]);
-
-  const teamColors = {
-    DVA: "#7c3aed", DVB: "#1565c0", DVC: "#0277bd",
-    DVD: "#00695c", DVE: "#2e7d32", DX:  "#d84315"
-  };
-
-  new Chart(document.getElementById("teamChart"), {
-    type: "bar",
-    data: {
-      labels: teams,
-      datasets: [{
-        label: "Epics",
-        data: counts,
-        backgroundColor: teams.map(t => teamColors[t] + "cc"),
-        borderColor:     teams.map(t => teamColors[t]),
-        borderWidth: 2,
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      indexAxis: "x",
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.parsed.y} epic${ctx.parsed.y !== 1 ? "s" : ""}`
-          }
-        }
+    if (statusChart) statusChart.destroy();
+    statusChart = new Chart(document.getElementById("statusChart"), {
+      type: "doughnut",
+      data: {
+        labels: statusLabels,
+        datasets: [{
+          data: statusData,
+          backgroundColor: statusLabels.map(l => statusPalette[l] || "#e0e0e0"),
+          borderColor:     statusLabels.map(l => statusBorder[l]  || "#bdbdbd"),
+          borderWidth: 2,
+          hoverOffset: 6,
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1, precision: 0 },
-          grid: { color: "#eceff1" }
-        },
-        x: {
-          grid: { display: false }
+      options: {
+        cutout: "68%",
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 12 }, padding: 14, usePointStyle: true } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} epic${ctx.parsed !== 1 ? "s" : ""}` } }
         }
       }
+    });
+
+    // Team bar
+    if (teamChart) teamChart.destroy();
+    teamChart = new Chart(document.getElementById("teamChart"), {
+      type: "bar",
+      data: {
+        labels: teams,
+        datasets: [{
+          label: "Epics",
+          data: counts,
+          backgroundColor: teams.map(t => TEAM_COLORS[t] + "cc"),
+          borderColor:     teams.map(t => TEAM_COLORS[t]),
+          borderWidth: 2, borderRadius: 6, borderSkipped: false,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} epic${ctx.parsed.y !== 1 ? "s" : ""}` } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: "#eceff1" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Render all ───────────────────────────────────────────────────────
+  function renderAll() {
+    updateKPIs();
+    renderTable(sortedEpics());
+    buildCharts();
+  }
+
+  // ── Fetch data.json ──────────────────────────────────────────────────
+  async function loadData() {
+    const btn    = document.getElementById("refreshBtn");
+    const banner = document.getElementById("errorBanner");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> Refreshing…';
+    banner.style.display = "none";
+
+    try {
+      // Cache-busting query param so browsers always get the latest version
+      const res = await fetch(`data.json?t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+
+      epics = payload.epics || [];
+      document.getElementById("lastUpdated").textContent = fmtDate(payload.lastUpdated);
+      renderAll();
+    } catch (err) {
+      banner.textContent = `Failed to load data: ${err.message}. Showing cached data.`;
+      banner.style.display = "block";
+      // Fall back to whatever we already have
+      if (epics.length) renderAll();
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = "↻ Refresh";
     }
-  });
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  document.getElementById("refreshBtn").addEventListener("click", loadData);
+  loadData();
 </script>
 </body>
 </html>

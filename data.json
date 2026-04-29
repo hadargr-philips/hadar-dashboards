@@ -1,0 +1,15 @@
+{
+  "lastUpdated": "2026-04-29T00:00:00Z",
+  "total": 9,
+  "epics": [
+    { "key": "ALGCQ-198945", "summary": "PI2_26 | DVC | Tech Debt",                                              "status": "In Progress", "team": "DVC" },
+    { "key": "ALGCQ-198212", "summary": "DVAS health check",                                                     "status": "Open",        "team": "DX"  },
+    { "key": "ALGCQ-197947", "summary": "Log cleanup",                                                           "status": "Open",        "team": "DVB" },
+    { "key": "ALGCQ-197522", "summary": "Remove 1:1 dependency of DVAS:DA node",                                 "status": "Open",        "team": "DVB" },
+    { "key": "ALGCQ-195542", "summary": "WDV: Float Windowing Phase 2",                                          "status": "Open",        "team": "DVB" },
+    { "key": "ALGCQ-195329", "summary": "AI Deep Integration for RSNA 2026 - phase 1",                           "status": "Open",        "team": "DVC" },
+    { "key": "ALGCQ-194864", "summary": "Performance Monitoring - Backlog",                                      "status": "Open",        "team": "DVD" },
+    { "key": "ALGCQ-192675", "summary": "Upgrade WebView2 Component",                                            "status": "Open",        "team": "DVB" },
+    { "key": "ALGCQ-186182", "summary": "Mammo Performance: improve switching panel time and other performance improvements", "status": "Open", "team": "DVC" }
+  ]
+}

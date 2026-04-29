@@ -1,0 +1,88 @@
+name: Refresh Jira Data
+
+on:
+  workflow_dispatch:        # Manual trigger from GitHub Actions UI
+  schedule:
+    - cron: '0 6 * * 1-5'  # Weekdays at 06:00 UTC
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # needed to push data.json back
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch PI2_26 Client Group epics from Jira
+        env:
+          JIRA_TOKEN: ${{ secrets.JIRA_PERSONAL_TOKEN }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, urllib.request, urllib.parse, datetime, os, sys
+
+          token = os.environ.get("JIRA_TOKEN", "")
+          if not token:
+              print("ERROR: JIRA_PERSONAL_TOKEN secret is not set.", file=sys.stderr)
+              sys.exit(1)
+
+          jql = (
+              'issuetype = Epic '
+              'AND cf[18300] = "PI2_26" '
+              'AND cf[12002] in ("DVA","DVB","DVC","DVD","DVE","DX")'
+          )
+
+          params = urllib.parse.urlencode({
+              "jql":        jql,
+              "fields":     "summary,status,customfield_18300,customfield_12002",
+              "maxResults": 200,
+          })
+
+          url = f"https://jiranew.vuernd.philips.com/rest/api/2/search?{params}"
+          req = urllib.request.Request(url)
+          req.add_header("Authorization", f"Bearer {token}")
+          req.add_header("Accept", "application/json")
+
+          try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  data = json.loads(resp.read())
+          except Exception as exc:
+              print(f"ERROR: Jira request failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+
+          epics = []
+          for issue in data.get("issues", []):
+              f = issue.get("fields", {})
+              status = (f.get("status") or {}).get("name", "Unknown")
+              team_f = f.get("customfield_12002") or {}
+              team   = team_f.get("value", "") if isinstance(team_f, dict) else ""
+              epics.append({
+                  "key":     issue["key"],
+                  "summary": f.get("summary", ""),
+                  "status":  status,
+                  "team":    team,
+              })
+
+          output = {
+              "lastUpdated": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "total":       len(epics),
+              "epics":       epics,
+          }
+
+          with open("data.json", "w") as fh:
+              json.dump(output, fh, indent=2)
+
+          print(f"Wrote {len(epics)} epics to data.json")
+          PYEOF
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          if git diff --cached --quiet; then
+            echo "No changes — data.json is already up to date."
+          else
+            git commit -m "chore: refresh Jira data [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+            git push
+          fi
