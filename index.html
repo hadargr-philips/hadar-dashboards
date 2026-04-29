@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PI2_26 — Client Group Epics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --blue:       #1565c0;
+      --blue-light: #1976d2;
+      --blue-pale:  #e3f2fd;
+      --green:      #2e7d32;
+      --orange:     #e65100;
+      --amber:      #f59e0b;
+      --gray:       #607d8b;
+      --surface:    #ffffff;
+      --bg:         #f0f4f8;
+      --border:     #cfd8dc;
+
+      --dva:  #7c3aed;
+      --dvb:  #1565c0;
+      --dvc:  #0277bd;
+      --dvd:  #00695c;
+      --dve:  #2e7d32;
+      --dx:   #d84315;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: #1a2332;
+      min-height: 100vh;
+    }
+
+    /* ── TOP BAR ─────────────────────────────────────────────── */
+    .topbar {
+      background: linear-gradient(135deg, #0d3b6e 0%, #1565c0 60%, #1976d2 100%);
+      color: #fff;
+      padding: 28px 40px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .topbar::after {
+      content: '';
+      position: absolute;
+      right: -60px;
+      top: -60px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .topbar h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .topbar .subtitle {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.82;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .topbar .tag {
+      background: rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 2px 12px;
+      font-weight: 500;
+    }
+
+    /* ── CONTENT ─────────────────────────────────────────────── */
+    .content {
+      padding: 28px 40px 48px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* ── KPI CARDS ───────────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px 20px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      border-top: 4px solid var(--blue);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi.open      { border-color: #90a4ae; }
+    .kpi.progress  { border-color: var(--amber); }
+    .kpi.teams     { border-color: var(--green); }
+
+    .kpi .num {
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--blue);
+    }
+
+    .kpi.open     .num { color: #546e7a; }
+    .kpi.progress .num { color: #b45309; }
+    .kpi.teams    .num { color: var(--green); }
+
+    .kpi .label {
+      font-size: 0.78rem;
+      color: var(--gray);
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    /* ── CHARTS ROW ──────────────────────────────────────────── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1.8fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 780px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 22px 24px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .chart-card h3 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gray);
+      margin-bottom: 16px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── TABLE ───────────────────────────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .table-header h3 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #1a2332;
+    }
+
+    .jql-badge {
+      font-size: 0.72rem;
+      background: var(--blue-pale);
+      color: var(--blue);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      background: #f5f7fa;
+      color: var(--gray);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 11px 16px;
+      text-align: left;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    thead th:hover { background: #eaecf0; }
+
+    thead th .sort-icon { margin-left: 4px; opacity: 0.4; font-style: normal; }
+    thead th.asc  .sort-icon { opacity: 1; }
+    thead th.desc .sort-icon { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f9fc; }
+
+    td {
+      padding: 12px 16px;
+      font-size: 0.86rem;
+      vertical-align: middle;
+    }
+
+    td.num-col { color: var(--gray); font-size: 0.8rem; width: 40px; }
+
+    td.key-col a {
+      color: var(--blue);
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+
+    td.key-col a:hover { text-decoration: underline; }
+
+    td.summary-col { max-width: 380px; }
+
+    /* ── STATUS BADGES ───────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.73rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .s-open       { background: #eceff1; color: #546e7a; }
+    .s-open::before { background: #90a4ae; }
+
+    .s-inprogress { background: #fff8e1; color: #b45309; }
+    .s-inprogress::before { background: var(--amber); animation: pulse 1.4s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .s-done       { background: #e8f5e9; color: var(--green); }
+    .s-done::before { background: var(--green); }
+
+    /* ── TEAM CHIPS ──────────────────────────────────────────── */
+    .team {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .t-dva { background: #ede9fe; color: var(--dva); }
+    .t-dvb { background: #e3f2fd; color: var(--dvb); }
+    .t-dvc { background: #e1f5fe; color: var(--dvc); }
+    .t-dvd { background: #e0f2f1; color: var(--dvd); }
+    .t-dve { background: #e8f5e9; color: var(--dve); }
+    .t-dx  { background: #fbe9e7; color: var(--dx);  }
+
+    /* ── FOOTER ──────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.76rem;
+      color: #adb5bd;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <h1>PI2_26 — Client Group Epics Dashboard</h1>
+  <div class="subtitle">
+    <span class="tag">📅 Snapshot: April 29, 2026</span>
+    <span class="tag">🗺 PI: PI2_26</span>
+    <span class="tag">👥 Group: Client (DVA · DVB · DVC · DVD · DVE · DX)</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <span class="num">9</span>
+      <span class="label">Total Epics</span>
+    </div>
+    <div class="kpi open">
+      <span class="num">8</span>
+      <span class="label">Open</span>
+    </div>
+    <div class="kpi progress">
+      <span class="num">1</span>
+      <span class="label">In Progress</span>
+    </div>
+    <div class="kpi teams">
+      <span class="num">4</span>
+      <span class="label">Teams Active</span>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+
+    <!-- Status donut -->
+    <div class="chart-card">
+      <h3>Status Breakdown</h3>
+      <div class="chart-wrap">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Team bar -->
+    <div class="chart-card">
+      <h3>Epics by Team</h3>
+      <div class="chart-wrap">
+        <canvas id="teamChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3>Epic List</h3>
+      <span class="jql-badge" title='issuetype = Epic AND cf[18300] = "PI2_26" AND cf[12002] in ("DVA","DVB","DVC","DVD","DVE","DX")'>
+        issuetype = Epic AND cf[18300] = "PI2_26" AND cf[12002] in ("DVA","DVB","DVC","DVD","DVE","DX")
+      </span>
+    </div>
+
+    <table id="epicsTable">
+      <thead>
+        <tr>
+          <th class="num-col">#</th>
+          <th data-col="key">Key <i class="sort-icon">▲</i></th>
+          <th data-col="summary">Summary <i class="sort-icon">▲</i></th>
+          <th data-col="status">Status <i class="sort-icon">▲</i></th>
+          <th data-col="team">Team <i class="sort-icon">▲</i></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  Generated on April 29, 2026 · PI2_26 Client Group Epics · hadar-dashboards
+</footer>
+
+<script>
+  // ── Data ──────────────────────────────────────────────────────────────
+  const JIRA_BASE = "https://jiranew.vuernd.philips.com/browse/";
+
+  const epics = [
+    { key: "ALGCQ-198945", summary: "PI2_26 | DVC | Tech Debt",                                              status: "In Progress", team: "DVC" },
+    { key: "ALGCQ-198212", summary: "DVAS health check",                                                     status: "Open",        team: "DX"  },
+    { key: "ALGCQ-197947", summary: "Log cleanup",                                                           status: "Open",        team: "DVB" },
+    { key: "ALGCQ-197522", summary: "Remove 1:1 dependency of DVAS:DA node",                                 status: "Open",        team: "DVB" },
+    { key: "ALGCQ-195542", summary: "WDV: Float Windowing Phase 2",                                          status: "Open",        team: "DVB" },
+    { key: "ALGCQ-195329", summary: "AI Deep Integration for RSNA 2026 - phase 1",                           status: "Open",        team: "DVC" },
+    { key: "ALGCQ-194864", summary: "Performance Monitoring - Backlog",                                      status: "Open",        team: "DVD" },
+    { key: "ALGCQ-192675", summary: "Upgrade WebView2 Component",                                            status: "Open",        team: "DVB" },
+    { key: "ALGCQ-186182", summary: "Mammo Performance: improve switching panel time and other performance improvements", status: "Open", team: "DVC" },
+  ];
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function statusClass(s) {
+    if (s === "In Progress") return "s-inprogress";
+    if (s === "Done" || s === "Closed") return "s-done";
+    return "s-open";
+  }
+
+  function teamClass(t) { return "t-" + t.toLowerCase().replace(/[^a-z]/g, ""); }
+
+  // ── Table render ──────────────────────────────────────────────────────
+  let sortCol  = null;
+  let sortDir  = 1; // 1 asc, -1 desc
+
+  function renderTable(rows) {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = rows.map((e, i) => `
+      <tr>
+        <td class="num-col">${i + 1}</td>
+        <td class="key-col"><a href="${JIRA_BASE}${e.key}" target="_blank" rel="noreferrer">${e.key}</a></td>
+        <td class="summary-col">${e.summary}</td>
+        <td><span class="badge ${statusClass(e.status)}">${e.status}</span></td>
+        <td><span class="team ${teamClass(e.team)}">${e.team}</span></td>
+      </tr>`).join("");
+  }
+
+  function sortedEpics() {
+    if (!sortCol) return [...epics];
+    return [...epics].sort((a, b) => {
+      const va = a[sortCol] || "";
+      const vb = b[sortCol] || "";
+      return va.localeCompare(vb) * sortDir;
+    });
+  }
+
+  // Column sort
+  document.querySelectorAll("thead th[data-col]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        sortDir *= -1;
+      } else {
+        sortCol = col;
+        sortDir = 1;
+      }
+      document.querySelectorAll("thead th").forEach(h => h.classList.remove("asc", "desc"));
+      th.classList.add(sortDir === 1 ? "asc" : "desc");
+      renderTable(sortedEpics());
+    });
+  });
+
+  renderTable(epics);
+
+  // ── Status Donut ──────────────────────────────────────────────────────
+  new Chart(document.getElementById("statusChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Open", "In Progress"],
+      datasets: [{
+        data: [8, 1],
+        backgroundColor: ["#cfd8dc", "#fcd34d"],
+        borderColor:     ["#90a4ae", "#f59e0b"],
+        borderWidth: 2,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      cutout: "68%",
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { font: { size: 12 }, padding: 14, usePointStyle: true }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} epic${ctx.parsed !== 1 ? "s" : ""}`
+          }
+        }
+      }
+    }
+  });
+
+  // ── Team Bar ──────────────────────────────────────────────────────────
+  const teamCounts = epics.reduce((acc, e) => {
+    acc[e.team] = (acc[e.team] || 0) + 1;
+    return acc;
+  }, {});
+
+  const teamOrder = ["DVA","DVB","DVC","DVD","DVE","DX"];
+  const teams  = teamOrder.filter(t => teamCounts[t]);
+  const counts = teams.map(t => teamCounts[t]);
+
+  const teamColors = {
+    DVA: "#7c3aed", DVB: "#1565c0", DVC: "#0277bd",
+    DVD: "#00695c", DVE: "#2e7d32", DX:  "#d84315"
+  };
+
+  new Chart(document.getElementById("teamChart"), {
+    type: "bar",
+    data: {
+      labels: teams,
+      datasets: [{
+        label: "Epics",
+        data: counts,
+        backgroundColor: teams.map(t => teamColors[t] + "cc"),
+        borderColor:     teams.map(t => teamColors[t]),
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: "x",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y} epic${ctx.parsed.y !== 1 ? "s" : ""}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, precision: 0 },
+          grid: { color: "#eceff1" }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>
