@@ -1,0 +1,1 @@
+always use git to keep history, auto commit on main branch`

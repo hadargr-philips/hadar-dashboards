@@ -1,0 +1,225 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import { Employee } from '../types/employee';
+import { searchEmployees } from '../utils/hierarchyBuilder';
+import { useEmployeeStore } from '../store/useEmployeeStore';
+import RoleBadge from './RoleBadge';
+
+interface SearchBarProps {
+  employees: Employee[];
+  onSelect: (employee: Employee) => void;
+}
+
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 dark:bg-yellow-700/60 text-inherit rounded px-0.5">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+export default function SearchBar({ employees, onSelect }: SearchBarProps) {
+  const { searchQuery, setSearchQuery } = useEmployeeStore(s => ({
+    searchQuery: s.searchQuery,
+    setSearchQuery: s.setSearchQuery,
+  }));
+
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const results = searchEmployees(searchQuery, employees);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setOpen(true);
+    setActiveIndex(-1);
+  };
+
+  const handleSelect = useCallback((employee: Employee) => {
+    setOpen(false);
+    setActiveIndex(-1);
+    onSelect(employee);
+  }, [onSelect]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || results.length === 0) {
+      if (e.key === 'Enter' && results.length > 0) {
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveIndex(i => Math.min(i + 1, results.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveIndex(i => Math.max(i - 1, -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (activeIndex >= 0 && results[activeIndex]) {
+          handleSelect(results[activeIndex]);
+        } else if (results.length === 1) {
+          handleSelect(results[0]);
+        }
+        break;
+      case 'Escape':
+        setOpen(false);
+        inputRef.current?.blur();
+        break;
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setOpen(false);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const showDropdown = open && searchQuery.trim().length > 0;
+
+  return (
+    <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
+      {/* Input */}
+      <div className="relative flex items-center">
+        <Search className="absolute left-4 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchQuery}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => searchQuery && setOpen(true)}
+          placeholder="Search by employee name…"
+          aria-label="Search employees"
+          aria-autocomplete="list"
+          aria-expanded={showDropdown}
+          className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                     placeholder-gray-400 dark:placeholder-gray-500
+                     shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                     text-base transition-all duration-200"
+        />
+        {searchQuery && (
+          <button
+            onClick={clearSearch}
+            aria-label="Clear search"
+            className="absolute right-4 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+                       hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {showDropdown && (
+        <div
+          ref={dropdownRef}
+          role="listbox"
+          className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-gray-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 shadow-2xl overflow-hidden animate-slide-down"
+        >
+          {results.length === 0 ? (
+            <div className="px-5 py-6 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No employees found matching &ldquo;{searchQuery}&rdquo;
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+                  {results.length} result{results.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <ul className="max-h-80 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700/50">
+                {results.map((employee, index) => (
+                  <li
+                    key={employee.id}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    onClick={() => handleSelect(employee)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={`flex items-center gap-4 px-4 py-3.5 cursor-pointer transition-colors
+                      ${index === activeIndex
+                        ? 'bg-blue-50 dark:bg-blue-900/30'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
+                  >
+                    {/* Avatar */}
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                      style={{ backgroundColor: '#3B82F6' }}
+                    >
+                      {employee.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {highlightMatch(employee.name, searchQuery)}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {employee.team && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                            {employee.team}
+                          </span>
+                        )}
+                        {employee.team && employee.group && (
+                          <span className="text-gray-300 dark:text-gray-600 text-xs">·</span>
+                        )}
+                        {employee.group && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[100px]">
+                            {employee.group}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Role */}
+                    <div className="flex-shrink-0">
+                      <RoleBadge role={employee.role} size="sm" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Press <kbd className="px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 font-mono text-xs">↑↓</kbd> to navigate ·{' '}
+                  <kbd className="px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 font-mono text-xs">Enter</kbd> to select
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
