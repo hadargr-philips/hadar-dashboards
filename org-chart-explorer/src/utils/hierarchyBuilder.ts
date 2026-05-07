@@ -1,4 +1,4 @@
-import { Employee, Role } from '../types/employee';
+import { Employee, Role, PositionedEmployee } from '../types/employee';
 
 /** Normalize raw role string to a canonical Role value */
 export function normalizeRole(role: string | undefined): Role {
@@ -17,39 +17,60 @@ export function isBackendGroup(employee: Employee): boolean {
   return employee.group.toLowerCase() === 'backend';
 }
 
+/** Build a PositionedEmployee from an employee + role. */
+function makePositioned(employee: Employee, effectiveRole: Role): PositionedEmployee {
+  return {
+    employee,
+    effectiveRole,
+    positionId: `${employee.id}::${effectiveRole}`,
+  };
+}
+
 /**
- * Returns the direct manager of an employee based on:
- * - Role-based hierarchy rules
- * - Backend group special rules (SM → GL → GM)
+ * Given an employee at a known effective role, return their manager as a
+ * PositionedEmployee with the correct effective role for that level.
+ *
+ * Lookup is column-based, NOT role-field-based — so the same person can
+ * appear twice in one chain if they occupy two different positions
+ * (e.g., someone listed both as a GM and as a Department Manager).
  */
-export function getManagerEmployee(
-  employee: Employee,
+function getManagerPositioned(
+  currentEmployee: Employee,
+  currentEffectiveRole: Role,
   allEmployees: Employee[],
-): Employee | null {
-  const role = normalizeRole(employee.role);
-  const isBackend = isBackendGroup(employee);
-
+  visitedPositions: Set<string>,
+): PositionedEmployee | null {
+  const isBackend = isBackendGroup(currentEmployee);
   let managerName = '';
+  let managerRole: Role = '';
 
-  switch (role) {
+  switch (currentEffectiveRole) {
     case 'Dev':
     case 'QA':
     case '':
-      managerName = employee.teamManager;
+      managerName = currentEmployee.teamManager;
+      managerRole = 'SM';
       break;
     case 'SM':
-      // Backend: SM → GL; others: SM → GM
-      managerName = isBackend ? employee.groupLead : employee.groupManager;
+      if (isBackend) {
+        managerName = currentEmployee.groupLead;
+        managerRole = 'GL';
+      } else {
+        managerName = currentEmployee.groupManager;
+        managerRole = 'GM';
+      }
       break;
     case 'GL':
-      // GL only exists in Backend; GL → GM
-      managerName = employee.groupManager;
+      managerName = currentEmployee.groupManager;
+      managerRole = 'GM';
       break;
     case 'GM':
-      managerName = employee.departmentManager;
+      managerName = currentEmployee.departmentManager;
+      managerRole = 'Department Manager';
       break;
     case 'Department Manager':
-      managerName = employee.divisionManager;
+      managerName = currentEmployee.divisionManager;
+      managerRole = 'Division Manager';
       break;
     case 'Division Manager':
       return null;
@@ -57,98 +78,90 @@ export function getManagerEmployee(
 
   if (!managerName) return null;
 
-  // Find by exact name match, excluding self (circular reference guard)
-  return (
-    allEmployees.find(e => e.name === managerName && e.id !== employee.id) ?? null
+  const managerEmployee = allEmployees.find(
+    e => e.name === managerName && e.id !== currentEmployee.id,
   );
+  if (!managerEmployee) return null;
+
+  const positionId = `${managerEmployee.id}::${managerRole}`;
+  // Cycle guard: same person in the same role already visited
+  if (visitedPositions.has(positionId)) return null;
+
+  return { employee: managerEmployee, effectiveRole: managerRole, positionId };
 }
 
-/** Returns the unique direct reports of an employee. */
-export function getDirectReports(
+/**
+ * Returns the direct reports of an employee at a given effective role,
+ * as PositionedEmployee objects carrying their own effective roles.
+ */
+export function getDirectReportsPositioned(
   employee: Employee,
+  effectiveRole: Role,
   allEmployees: Employee[],
-): Employee[] {
-  const role = normalizeRole(employee.role);
-  const isBackend = isBackendGroup(employee);
-
+): PositionedEmployee[] {
   const seen = new Set<string>();
-  const dedupe = (list: Employee[]): Employee[] =>
-    list.filter(e => {
-      if (seen.has(e.id)) return false;
-      seen.add(e.id);
+  const dedupe = (list: PositionedEmployee[]): PositionedEmployee[] =>
+    list.filter(p => {
+      if (seen.has(p.positionId)) return false;
+      seen.add(p.positionId);
       return true;
     });
 
-  switch (role) {
+  const isBackend = isBackendGroup(employee);
+
+  switch (effectiveRole) {
     case 'SM': {
-      // Dev/QA (and blank-role) employees whose teamManager is this SM
       return dedupe(
-        allEmployees.filter(
-          e => e.teamManager === employee.name && e.id !== employee.id,
-        ),
+        allEmployees
+          .filter(e => e.teamManager === employee.name && e.id !== employee.id)
+          .map(e => makePositioned(e, normalizeRole(e.role) || 'Dev')),
       );
     }
 
     case 'GL': {
-      // SMs whose groupLead is this GL (Backend only)
       return dedupe(
-        allEmployees.filter(
-          e =>
-            normalizeRole(e.role) === 'SM' && e.groupLead === employee.name,
-        ),
+        allEmployees
+          .filter(e => normalizeRole(e.role) === 'SM' && e.groupLead === employee.name)
+          .map(e => makePositioned(e, 'SM')),
       );
     }
 
     case 'GM': {
       if (isBackend) {
-        // GLs under this GM
-        const gls = dedupe(
-          allEmployees.filter(
-            e =>
-              normalizeRole(e.role) === 'GL' &&
-              e.groupManager === employee.name,
-          ),
+        const gls = allEmployees.filter(
+          e => normalizeRole(e.role) === 'GL' && e.groupManager === employee.name,
         );
-        if (gls.length > 0) return gls;
-        // Fallback: SMs if no explicit GL rows
+        if (gls.length > 0) return dedupe(gls.map(e => makePositioned(e, 'GL')));
         return dedupe(
-          allEmployees.filter(
-            e =>
-              normalizeRole(e.role) === 'SM' &&
-              e.groupManager === employee.name,
-          ),
-        );
-      } else {
-        // SMs under this GM
-        return dedupe(
-          allEmployees.filter(
-            e =>
-              normalizeRole(e.role) === 'SM' &&
-              e.groupManager === employee.name,
-          ),
+          allEmployees
+            .filter(e => normalizeRole(e.role) === 'SM' && e.groupManager === employee.name)
+            .map(e => makePositioned(e, 'SM')),
         );
       }
+      return dedupe(
+        allEmployees
+          .filter(e => normalizeRole(e.role) === 'SM' && e.groupManager === employee.name)
+          .map(e => makePositioned(e, 'SM')),
+      );
     }
 
     case 'Department Manager': {
-      // GMs whose departmentManager is this DM
       return dedupe(
-        allEmployees.filter(
-          e =>
-            normalizeRole(e.role) === 'GM' &&
-            e.departmentManager === employee.name,
-        ),
+        allEmployees
+          .filter(e => normalizeRole(e.role) === 'GM' && e.departmentManager === employee.name)
+          .map(e => makePositioned(e, 'GM')),
       );
     }
 
     case 'Division Manager': {
-      // Department Managers whose divisionManager is this DivM
       return dedupe(
-        allEmployees.filter(
-          e =>
-            normalizeRole(e.role) === 'Department Manager' &&
-            e.divisionManager === employee.name,
-        ),
+        allEmployees
+          .filter(
+            e =>
+              normalizeRole(e.role) === 'Department Manager' &&
+              e.divisionManager === employee.name,
+          )
+          .map(e => makePositioned(e, 'Department Manager')),
       );
     }
 
@@ -157,45 +170,64 @@ export function getDirectReports(
   }
 }
 
+/** Backwards-compat shim used by HomePage stats. */
+export function getDirectReports(
+  employee: Employee,
+  allEmployees: Employee[],
+): Employee[] {
+  return getDirectReportsPositioned(
+    employee,
+    normalizeRole(employee.role),
+    allEmployees,
+  ).map(p => p.employee);
+}
+
 export interface OrgHierarchy {
-  /** Managers from topmost (Division Manager) down to direct manager */
-  managersChain: Employee[];
+  /** Managers from topmost (Division Manager) down to direct manager, each with their effective role. */
+  managersChain: PositionedEmployee[];
   selected: Employee;
-  /** One level of direct reports */
-  directReports: Employee[];
+  selectedEffectiveRole: Role;
+  /** One level of direct reports with their effective roles. */
+  directReports: PositionedEmployee[];
 }
 
 /**
- * Builds the full hierarchy for the selected employee:
- * - managersChain: from Division Manager down to direct manager
- * - directReports: immediate subordinates
+ * Builds the full hierarchy for the selected employee at a given effective role.
+ *
+ * A person who holds two roles (e.g. GM AND Department Manager) will appear
+ * TWICE in the chain — once per distinct position — so both roles are visible.
+ * Cycle detection is position-based (`employee.id + role`), not name-based.
  */
 export function getFullHierarchy(
   employee: Employee,
+  effectiveRole: Role,
   allEmployees: Employee[],
 ): OrgHierarchy {
-  const managersChain: Employee[] = [];
-  const visited = new Set<string>();
+  const managersChain: PositionedEmployee[] = [];
+  const visitedPositions = new Set<string>();
 
-  // Walk up the chain
-  let current: Employee | null = employee;
-  while (current) {
-    if (visited.has(current.id)) break; // Circular reference guard
-    visited.add(current.id);
-    const manager = getManagerEmployee(current, allEmployees);
-    if (manager && !visited.has(manager.id)) {
-      managersChain.unshift(manager); // Prepend so topmost is first
-      current = manager;
-    } else {
-      break;
-    }
+  visitedPositions.add(`${employee.id}::${effectiveRole}`);
+
+  let currentEmp = employee;
+  let currentRole = effectiveRole;
+
+  while (true) {
+    const mgr = getManagerPositioned(currentEmp, currentRole, allEmployees, visitedPositions);
+    if (!mgr) break;
+
+    visitedPositions.add(mgr.positionId);
+    managersChain.unshift(mgr); // Prepend → topmost first
+
+    currentEmp = mgr.employee;
+    currentRole = mgr.effectiveRole;
   }
 
-  const directReports = getDirectReports(employee, allEmployees);
+  const directReports = getDirectReportsPositioned(employee, effectiveRole, allEmployees);
 
   return {
     managersChain,
     selected: employee,
+    selectedEffectiveRole: effectiveRole,
     directReports,
   };
 }

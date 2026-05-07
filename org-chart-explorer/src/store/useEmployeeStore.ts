@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Employee } from '../types/employee';
+import { Employee, Role } from '../types/employee';
+import { normalizeRole } from '../utils/hierarchyBuilder';
 
 type Page = 'home' | 'orgchart';
 
@@ -11,6 +12,7 @@ interface EmployeeStore {
   // Navigation
   currentPage: Page;
   selectedEmployee: Employee | null;
+  selectedEffectiveRole: Role;
 
   // UI
   darkMode: boolean;
@@ -18,7 +20,7 @@ interface EmployeeStore {
 
   // Actions
   setEmployees: (employees: Employee[], fileName: string) => void;
-  selectEmployee: (employee: Employee) => void;
+  selectEmployee: (employee: Employee, effectiveRole?: Role) => void;
   goHome: () => void;
   toggleDarkMode: () => void;
   setSearchQuery: (query: string) => void;
@@ -34,17 +36,23 @@ export const useEmployeeStore = create<EmployeeStore>((set) => ({
   fileName: '',
   currentPage: 'home',
   selectedEmployee: null,
+  selectedEffectiveRole: '',
   darkMode: savedDark,
   searchQuery: '',
 
   setEmployees: (employees, fileName) =>
-    set({ employees, fileName, currentPage: 'home', selectedEmployee: null }),
+    set({ employees, fileName, currentPage: 'home', selectedEmployee: null, selectedEffectiveRole: '' }),
 
-  selectEmployee: (employee) =>
-    set({ selectedEmployee: employee, currentPage: 'orgchart', searchQuery: '' }),
+  selectEmployee: (employee, effectiveRole) =>
+    set({
+      selectedEmployee: employee,
+      selectedEffectiveRole: effectiveRole ?? normalizeRole(employee.role),
+      currentPage: 'orgchart',
+      searchQuery: '',
+    }),
 
   goHome: () =>
-    set({ currentPage: 'home', selectedEmployee: null, searchQuery: '' }),
+    set({ currentPage: 'home', selectedEmployee: null, selectedEffectiveRole: '', searchQuery: '' }),
 
   toggleDarkMode: () =>
     set((state) => {

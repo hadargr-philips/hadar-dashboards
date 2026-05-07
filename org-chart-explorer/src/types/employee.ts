@@ -99,3 +99,16 @@ export const ROLE_RANK: Record<string, number> = {
   'Department Manager': 4,
   'Division Manager': 5,
 };
+
+/**
+ * Represents an employee occupying a *specific* position in the hierarchy.
+ * The same person can appear multiple times with different effectiveRoles
+ * (e.g., someone who is both a GM and a Department Manager).
+ */
+export interface PositionedEmployee {
+  employee: Employee;
+  /** The role this person plays at this position in the chain. */
+  effectiveRole: Role;
+  /** Unique id for this position: `${employee.id}::${effectiveRole}` */
+  positionId: string;
+}

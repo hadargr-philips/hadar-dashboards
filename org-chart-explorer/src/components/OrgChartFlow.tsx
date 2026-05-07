@@ -10,12 +10,10 @@ import ReactFlow, {
   useEdgesState,
   useReactFlow,
 } from 'reactflow';
-import { Employee } from '../types/employee';
-import { getFullHierarchy } from '../utils/hierarchyBuilder';
+import { Employee, Role, ROLE_STYLES } from '../types/employee';
+import { getFullHierarchy, normalizeRole } from '../utils/hierarchyBuilder';
 import { buildOrgChartElements } from '../utils/orgChartLayout';
 import EmployeeNode from './EmployeeNode';
-import { ROLE_STYLES } from '../types/employee';
-import { normalizeRole } from '../utils/hierarchyBuilder';
 
 // Register custom node types outside component to prevent re-renders
 const nodeTypes: NodeTypes = {
@@ -25,21 +23,23 @@ const nodeTypes: NodeTypes = {
 interface OrgChartFlowProps {
   employees: Employee[];
   selectedEmployee: Employee;
-  onEmployeeClick: (employee: Employee) => void;
+  selectedEffectiveRole: Role;
+  onEmployeeClick: (employee: Employee, effectiveRole: Role) => void;
   darkMode: boolean;
 }
 
 function OrgChartFlowInner({
   employees,
   selectedEmployee,
+  selectedEffectiveRole,
   onEmployeeClick,
   darkMode,
 }: OrgChartFlowProps) {
   const { fitView } = useReactFlow();
 
   const hierarchy = useMemo(
-    () => getFullHierarchy(selectedEmployee, employees),
-    [selectedEmployee, employees],
+    () => getFullHierarchy(selectedEmployee, selectedEffectiveRole, employees),
+    [selectedEmployee, selectedEffectiveRole, employees],
   );
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
@@ -47,6 +47,7 @@ function OrgChartFlowInner({
       buildOrgChartElements(
         hierarchy.managersChain,
         hierarchy.selected,
+        hierarchy.selectedEffectiveRole,
         hierarchy.directReports,
         onEmployeeClick,
       ),
@@ -70,9 +71,8 @@ function OrgChartFlowInner({
     return () => clearTimeout(timer);
   }, [initialNodes, fitView]);
 
-  const minimapNodeColor = useCallback((node: { data: { employee: Employee } }) => {
-    const role = normalizeRole(node.data?.employee?.role);
-    return ROLE_STYLES[role]?.badge ?? '#94A3B8';
+  const minimapNodeColor = useCallback((node: { data: { effectiveRole: Role } }) => {
+    return ROLE_STYLES[node.data?.effectiveRole ?? '']?.badge ?? '#94A3B8';
   }, []);
 
   const bgColor = darkMode ? '#0F172A' : '#F8FAFC';

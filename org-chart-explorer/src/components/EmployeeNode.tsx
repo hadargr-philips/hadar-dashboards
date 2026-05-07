@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Employee, ROLE_STYLES } from '../types/employee';
-import { normalizeRole } from '../utils/hierarchyBuilder';
+import { Employee, Role, ROLE_STYLES } from '../types/employee';
 
 export interface EmployeeNodeData {
   employee: Employee;
+  effectiveRole: Role;
   isSelected: boolean;
-  onClick?: (employee: Employee) => void;
+  onClick?: (employee: Employee, effectiveRole: Role) => void;
 }
 
 function getInitials(name: string): string {
@@ -18,13 +18,12 @@ function getInitials(name: string): string {
 }
 
 function EmployeeNode({ data }: NodeProps<EmployeeNodeData>) {
-  const { employee, isSelected, onClick } = data;
-  const role = normalizeRole(employee.role);
-  const style = ROLE_STYLES[role] ?? ROLE_STYLES[''];
+  const { employee, effectiveRole, isSelected, onClick } = data;
+  const style = ROLE_STYLES[effectiveRole] ?? ROLE_STYLES[''];
 
   return (
     <div
-      onClick={() => onClick?.(employee)}
+      onClick={() => onClick?.(employee, effectiveRole)}
       title={`${employee.name} — ${style.label}${employee.team ? ` · ${employee.team}` : ''}`}
       className={`
         relative select-none transition-all duration-200 cursor-pointer

@@ -1,5 +1,5 @@
 import { Node, Edge, MarkerType } from 'reactflow';
-import { Employee } from '../types/employee';
+import { Employee, Role, PositionedEmployee } from '../types/employee';
 
 const LEVEL_HEIGHT = 185;
 const NODE_WIDTH = 220;
@@ -7,10 +7,11 @@ const SELECTED_NODE_WIDTH = 250;
 const MIN_NODE_SPACING = 270;
 
 export function buildOrgChartElements(
-  managersChain: Employee[],
+  managersChain: PositionedEmployee[],
   selected: Employee,
-  directReports: Employee[],
-  onNodeClick?: (employee: Employee) => void,
+  selectedEffectiveRole: Role,
+  directReports: PositionedEmployee[],
+  onNodeClick?: (employee: Employee, effectiveRole: Role) => void,
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -25,16 +26,23 @@ export function buildOrgChartElements(
     }
   };
 
+  const selectedPositionId = `${selected.id}::${selectedEffectiveRole}`;
+
   // ── Manager chain (above selected) ──────────────────────────────────
-  managersChain.forEach((manager, index) => {
+  managersChain.forEach((positioned, index) => {
     const level = index - totalAbove; // Negative (above selected at y=0)
     const y = level * LEVEL_HEIGHT;
 
     addNode({
-      id: manager.id,
+      id: positioned.positionId,
       type: 'employeeNode',
       position: { x: -NODE_WIDTH / 2, y },
-      data: { employee: manager, isSelected: false, onClick: onNodeClick },
+      data: {
+        employee: positioned.employee,
+        effectiveRole: positioned.effectiveRole,
+        isSelected: false,
+        onClick: onNodeClick,
+      },
       draggable: false,
       selectable: true,
     });
@@ -43,9 +51,9 @@ export function buildOrgChartElements(
     if (index < managersChain.length - 1) {
       const next = managersChain[index + 1];
       edges.push({
-        id: `e-${manager.id}--${next.id}`,
-        source: manager.id,
-        target: next.id,
+        id: `e-${positioned.positionId}--${next.positionId}`,
+        source: positioned.positionId,
+        target: next.positionId,
         type: 'smoothstep',
         style: { stroke: '#CBD5E1', strokeWidth: 2 },
         markerEnd: {
@@ -60,10 +68,15 @@ export function buildOrgChartElements(
 
   // ── Selected employee (y = 0, centered) ─────────────────────────────
   addNode({
-    id: selected.id,
+    id: selectedPositionId,
     type: 'employeeNode',
     position: { x: -SELECTED_NODE_WIDTH / 2, y: 0 },
-    data: { employee: selected, isSelected: true, onClick: onNodeClick },
+    data: {
+      employee: selected,
+      effectiveRole: selectedEffectiveRole,
+      isSelected: true,
+      onClick: onNodeClick,
+    },
     draggable: false,
     selectable: true,
   });
@@ -72,9 +85,9 @@ export function buildOrgChartElements(
   if (managersChain.length > 0) {
     const directManager = managersChain[managersChain.length - 1];
     edges.push({
-      id: `e-${directManager.id}--${selected.id}`,
-      source: directManager.id,
-      target: selected.id,
+      id: `e-${directManager.positionId}--${selectedPositionId}`,
+      source: directManager.positionId,
+      target: selectedPositionId,
       type: 'smoothstep',
       animated: true,
       style: { stroke: '#3B82F6', strokeWidth: 2.5 },
@@ -92,23 +105,28 @@ export function buildOrgChartElements(
     const totalWidth = (directReports.length - 1) * MIN_NODE_SPACING;
     const startX = -totalWidth / 2 - NODE_WIDTH / 2;
 
-    directReports.forEach((report, index) => {
+    directReports.forEach((positioned, index) => {
       const x = startX + index * MIN_NODE_SPACING;
       const y = LEVEL_HEIGHT;
 
       addNode({
-        id: report.id,
+        id: positioned.positionId,
         type: 'employeeNode',
         position: { x, y },
-        data: { employee: report, isSelected: false, onClick: onNodeClick },
+        data: {
+          employee: positioned.employee,
+          effectiveRole: positioned.effectiveRole,
+          isSelected: false,
+          onClick: onNodeClick,
+        },
         draggable: false,
         selectable: true,
       });
 
       edges.push({
-        id: `e-${selected.id}--${report.id}`,
-        source: selected.id,
-        target: report.id,
+        id: `e-${selectedPositionId}--${positioned.positionId}`,
+        source: selectedPositionId,
+        target: positioned.positionId,
         type: 'smoothstep',
         style: { stroke: '#CBD5E1', strokeWidth: 2 },
         markerEnd: {

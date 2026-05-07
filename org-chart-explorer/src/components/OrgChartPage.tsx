@@ -9,24 +9,23 @@ import {
   Info,
 } from 'lucide-react';
 import { useEmployeeStore } from '../store/useEmployeeStore';
-import { getFullHierarchy, getDirectReports, normalizeRole } from '../utils/hierarchyBuilder';
-import { ROLE_STYLES } from '../types/employee';
-import { Employee } from '../types/employee';
+import { getFullHierarchy, getDirectReportsPositioned, normalizeRole } from '../utils/hierarchyBuilder';
+import { ROLE_STYLES, PositionedEmployee } from '../types/employee';
+import { Employee, Role } from '../types/employee';
 import RoleBadge from './RoleBadge';
 import OrgChartFlow from './OrgChartFlow';
 import SearchBar from './SearchBar';
 
 function HierarchyPill({
-  employee,
+  positioned,
   isSelected,
   onClick,
 }: {
-  employee: Employee;
+  positioned: PositionedEmployee & { name?: string; role?: Role };
   isSelected?: boolean;
   onClick?: () => void;
 }) {
-  const role = normalizeRole(employee.role);
-  const style = ROLE_STYLES[role] ?? ROLE_STYLES[''];
+  const style = ROLE_STYLES[positioned.effectiveRole] ?? ROLE_STYLES[''];
 
   return (
     <button
@@ -42,17 +41,18 @@ function HierarchyPill({
         style={{ backgroundColor: style.badge }}
       />
       <span className={`text-xs font-medium truncate max-w-[140px] ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>
-        {employee.name}
+        {positioned.employee.name}
       </span>
-      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{role || '—'}</span>
+      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{positioned.effectiveRole || '—'}</span>
     </button>
   );
 }
 
 export default function OrgChartPage() {
-  const { employees, selectedEmployee, selectEmployee, goHome, darkMode } = useEmployeeStore(s => ({
+  const { employees, selectedEmployee, selectedEffectiveRole, selectEmployee, goHome, darkMode } = useEmployeeStore(s => ({
     employees: s.employees,
     selectedEmployee: s.selectedEmployee,
+    selectedEffectiveRole: s.selectedEffectiveRole,
     selectEmployee: s.selectEmployee,
     goHome: s.goHome,
     darkMode: s.darkMode,
@@ -63,17 +63,27 @@ export default function OrgChartPage() {
 
   if (!selectedEmployee) return null;
 
-  const hierarchy = getFullHierarchy(selectedEmployee, employees);
-  const role = normalizeRole(selectedEmployee.role);
-  const style = ROLE_STYLES[role] ?? ROLE_STYLES[''];
+  const hierarchy = getFullHierarchy(selectedEmployee, selectedEffectiveRole, employees);
+  const style = ROLE_STYLES[selectedEffectiveRole] ?? ROLE_STYLES[''];
 
-  // Count total team members under this employee
-  const countTeamSize = (emp: Employee): number => {
-    const reports = getDirectReports(emp, employees);
+  // Count total subordinates (recursive)
+  const countTeamSize = (emp: Employee, role: Role, depth = 0): number => {
+    if (depth > 6) return 0; // Guard deep recursion
+    const reports = getDirectReportsPositioned(emp, role, employees);
     if (reports.length === 0) return 0;
-    return reports.length + reports.reduce((sum, r) => sum + countTeamSize(r), 0);
+    return reports.length + reports.reduce(
+      (sum, r) => sum + countTeamSize(r.employee, r.effectiveRole, depth + 1),
+      0,
+    );
   };
-  const teamSize = countTeamSize(selectedEmployee);
+  const teamSize = countTeamSize(selectedEmployee, selectedEffectiveRole);
+
+  // Positioned version of the selected employee for the pill display
+  const selectedPositioned: PositionedEmployee = {
+    employee: selectedEmployee,
+    effectiveRole: selectedEffectiveRole,
+    positionId: `${selectedEmployee.id}::${selectedEffectiveRole}`,
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
@@ -105,7 +115,7 @@ export default function OrgChartPage() {
               {selectedEmployee.name}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <RoleBadge role={selectedEmployee.role} size="sm" />
+              <RoleBadge role={selectedEffectiveRole} size="sm" />
               {selectedEmployee.team && (
                 <span className="text-xs text-gray-400 dark:text-gray-500 truncate hidden sm:block">
                   · {selectedEmployee.team}
@@ -153,9 +163,10 @@ export default function OrgChartPage() {
         {/* Org Chart Canvas */}
         <div className="flex-1 overflow-hidden relative">
           <OrgChartFlow
-            key={selectedEmployee.id}
+            key={`${selectedEmployee.id}::${selectedEffectiveRole}`}
             employees={employees}
             selectedEmployee={selectedEmployee}
+            selectedEffectiveRole={selectedEffectiveRole}
             onEmployeeClick={selectEmployee}
             darkMode={darkMode}
           />
@@ -202,7 +213,7 @@ export default function OrgChartPage() {
                     <p className="font-bold text-gray-900" style={{ color: style.text }}>
                       {selectedEmployee.name}
                     </p>
-                    <RoleBadge role={selectedEmployee.role} size="md" />
+                    <RoleBadge role={selectedEffectiveRole} size="md" />
                   </div>
                 </div>
                 <div className="space-y-1.5 text-sm">
@@ -239,17 +250,17 @@ export default function OrgChartPage() {
                   <div className="flex flex-col gap-1.5 relative">
                     {/* Vertical line */}
                     <div className="absolute left-3 top-4 bottom-4 w-px bg-gray-100 dark:bg-gray-800" />
-                    {hierarchy.managersChain.map((mgr, i) => (
-                      <div key={mgr.id} className="flex items-center gap-2 relative z-10">
+                    {hierarchy.managersChain.map((positioned) => (
+                      <div key={positioned.positionId} className="flex items-center gap-2 relative z-10">
                         <div
                           className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: ROLE_STYLES[normalizeRole(mgr.role)]?.badge ?? '#94A3B8' }}
+                          style={{ backgroundColor: ROLE_STYLES[positioned.effectiveRole]?.badge ?? '#94A3B8' }}
                         >
-                          {mgr.name.charAt(0).toUpperCase()}
+                          {positioned.employee.name.charAt(0).toUpperCase()}
                         </div>
                         <HierarchyPill
-                          employee={mgr}
-                          onClick={() => selectEmployee(mgr)}
+                          positioned={positioned}
+                          onClick={() => selectEmployee(positioned.employee, positioned.effectiveRole)}
                         />
                       </div>
                     ))}
@@ -261,7 +272,7 @@ export default function OrgChartPage() {
                       >
                         {selectedEmployee.name.charAt(0).toUpperCase()}
                       </div>
-                      <HierarchyPill employee={selectedEmployee} isSelected />
+                      <HierarchyPill positioned={selectedPositioned} isSelected />
                     </div>
                   </div>
                 </div>
@@ -277,11 +288,11 @@ export default function OrgChartPage() {
                     </h3>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    {hierarchy.directReports.map(report => (
+                    {hierarchy.directReports.map(positioned => (
                       <HierarchyPill
-                        key={report.id}
-                        employee={report}
-                        onClick={() => selectEmployee(report)}
+                        key={positioned.positionId}
+                        positioned={positioned}
+                        onClick={() => selectEmployee(positioned.employee, positioned.effectiveRole)}
                       />
                     ))}
                   </div>
@@ -289,7 +300,7 @@ export default function OrgChartPage() {
               )}
 
               {/* No reports */}
-              {hierarchy.directReports.length === 0 && normalizeRole(selectedEmployee.role) !== 'Division Manager' && (
+              {hierarchy.directReports.length === 0 && selectedEffectiveRole !== 'Division Manager' && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                   <Users className="w-4 h-4 text-gray-300 flex-shrink-0" />
                   <p className="text-xs text-gray-400 dark:text-gray-500">No direct reports found</p>
