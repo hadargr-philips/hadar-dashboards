@@ -40,7 +40,6 @@ function getManagerPositioned(
   allEmployees: Employee[],
   visitedPositions: Set<string>,
 ): PositionedEmployee | null {
-  const isBackend = isBackendGroup(currentEmployee);
   let managerName = '';
   let managerRole: Role = '';
 
@@ -52,7 +51,8 @@ function getManagerPositioned(
       managerRole = 'SM';
       break;
     case 'SM':
-      if (isBackend) {
+      // SM reports to GL if groupLead is filled, otherwise directly to GM
+      if (currentEmployee.groupLead) {
         managerName = currentEmployee.groupLead;
         managerRole = 'GL';
       } else {
@@ -65,8 +65,14 @@ function getManagerPositioned(
       managerRole = 'GM';
       break;
     case 'GM':
-      managerName = currentEmployee.departmentManager;
-      managerRole = 'Department Manager';
+      // GM reports to Department Manager if filled, otherwise directly to Division Manager
+      if (currentEmployee.departmentManager) {
+        managerName = currentEmployee.departmentManager;
+        managerRole = 'Department Manager';
+      } else {
+        managerName = currentEmployee.divisionManager;
+        managerRole = 'Division Manager';
+      }
       break;
     case 'Department Manager':
       managerName = currentEmployee.divisionManager;
@@ -107,8 +113,6 @@ export function getDirectReportsPositioned(
       return true;
     });
 
-  const isBackend = isBackendGroup(employee);
-
   switch (effectiveRole) {
     case 'SM': {
       return dedupe(
@@ -119,6 +123,7 @@ export function getDirectReportsPositioned(
     }
 
     case 'GL': {
+      // SMs who have this person listed as their groupLead
       return dedupe(
         allEmployees
           .filter(e => normalizeRole(e.role) === 'SM' && e.groupLead === employee.name)
@@ -127,25 +132,24 @@ export function getDirectReportsPositioned(
     }
 
     case 'GM': {
-      if (isBackend) {
-        const gls = allEmployees.filter(
-          e => normalizeRole(e.role) === 'GL' && e.groupManager === employee.name,
-        );
-        if (gls.length > 0) return dedupe(gls.map(e => makePositioned(e, 'GL')));
-        return dedupe(
-          allEmployees
-            .filter(e => normalizeRole(e.role) === 'SM' && e.groupManager === employee.name)
-            .map(e => makePositioned(e, 'SM')),
-        );
-      }
-      return dedupe(
-        allEmployees
-          .filter(e => normalizeRole(e.role) === 'SM' && e.groupManager === employee.name)
-          .map(e => makePositioned(e, 'SM')),
-      );
+      // GLs whose groupManager is this person
+      const gls = allEmployees
+        .filter(e => normalizeRole(e.role) === 'GL' && e.groupManager === employee.name)
+        .map(e => makePositioned(e, 'GL'));
+      // SMs who have NO groupLead (so they skip GL and report directly to GM)
+      const sms = allEmployees
+        .filter(
+          e =>
+            normalizeRole(e.role) === 'SM' &&
+            !e.groupLead &&
+            e.groupManager === employee.name,
+        )
+        .map(e => makePositioned(e, 'SM'));
+      return dedupe([...gls, ...sms]);
     }
 
     case 'Department Manager': {
+      // GMs whose departmentManager is this person
       return dedupe(
         allEmployees
           .filter(e => normalizeRole(e.role) === 'GM' && e.departmentManager === employee.name)
@@ -154,15 +158,24 @@ export function getDirectReportsPositioned(
     }
 
     case 'Division Manager': {
-      return dedupe(
-        allEmployees
-          .filter(
-            e =>
-              normalizeRole(e.role) === 'Department Manager' &&
-              e.divisionManager === employee.name,
-          )
-          .map(e => makePositioned(e, 'Department Manager')),
-      );
+      // Department Managers who report to this Division Manager
+      const dms = allEmployees
+        .filter(
+          e =>
+            normalizeRole(e.role) === 'Department Manager' &&
+            e.divisionManager === employee.name,
+        )
+        .map(e => makePositioned(e, 'Department Manager'));
+      // GMs who have no departmentManager (fall back directly to Division Manager)
+      const gms = allEmployees
+        .filter(
+          e =>
+            normalizeRole(e.role) === 'GM' &&
+            !e.departmentManager &&
+            e.divisionManager === employee.name,
+        )
+        .map(e => makePositioned(e, 'GM'));
+      return dedupe([...dms, ...gms]);
     }
 
     default:
