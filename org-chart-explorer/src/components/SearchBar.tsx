@@ -302,12 +302,6 @@ export default function SearchBar({ employees, onSelect }: SearchBarProps) {
   );
 }
 
-interface SearchBarProps {
-  employees: Employee[];
-  onSelect: (employee: Employee) => void;
-}
-
-function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
   if (idx === -1) return text;
