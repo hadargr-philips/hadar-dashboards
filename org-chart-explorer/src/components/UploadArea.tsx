@@ -36,7 +36,10 @@ export default function UploadArea() {
       }
 
       setWarnings(result.warnings);
-      setEmployees(result.employees, file.name);
+      const dateStr = new Date(file.lastModified).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      });
+      setEmployees(result.employees, file.name, dateStr);
       setUploadState('success');
     } catch (err) {
       setErrors(['An unexpected error occurred while reading the file.']);

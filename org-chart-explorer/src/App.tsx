@@ -26,7 +26,7 @@ function Header() {
         <div className="p-1.5 rounded-lg bg-blue-600 group-hover:bg-blue-700 transition-colors">
           <Network className="w-4 h-4 text-white" />
         </div>
-        <span className="font-bold text-sm hidden sm:inline">Org Chart Explorer</span>
+        <span className="font-bold text-sm hidden sm:inline">Philips R&amp;D Org Chart</span>
       </button>
 
       <button

@@ -8,6 +8,7 @@ interface EmployeeStore {
   // Data
   employees: Employee[];
   fileName: string;
+  fileDate: string;
 
   // Navigation
   currentPage: Page;
@@ -19,7 +20,7 @@ interface EmployeeStore {
   searchQuery: string;
 
   // Actions
-  setEmployees: (employees: Employee[], fileName: string) => void;
+  setEmployees: (employees: Employee[], fileName: string, fileDate?: string) => void;
   selectEmployee: (employee: Employee, effectiveRole?: Role) => void;
   goHome: () => void;
   toggleDarkMode: () => void;
@@ -34,14 +35,15 @@ if (savedDark) document.documentElement.classList.add('dark');
 export const useEmployeeStore = create<EmployeeStore>((set) => ({
   employees: [],
   fileName: '',
+  fileDate: '',
   currentPage: 'home',
   selectedEmployee: null,
   selectedEffectiveRole: '',
   darkMode: savedDark,
   searchQuery: '',
 
-  setEmployees: (employees, fileName) =>
-    set({ employees, fileName, currentPage: 'home', selectedEmployee: null, selectedEffectiveRole: '' }),
+  setEmployees: (employees, fileName, fileDate) =>
+    set({ employees, fileName, fileDate: fileDate ?? '', currentPage: 'home', selectedEmployee: null, selectedEffectiveRole: '' }),
 
   selectEmployee: (employee, effectiveRole) =>
     set({
@@ -69,5 +71,5 @@ export const useEmployeeStore = create<EmployeeStore>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   clearData: () =>
-    set({ employees: [], fileName: '', currentPage: 'home', selectedEmployee: null }),
+    set({ employees: [], fileName: '', fileDate: '', currentPage: 'home', selectedEmployee: null }),
 }));

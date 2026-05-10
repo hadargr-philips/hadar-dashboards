@@ -252,6 +252,56 @@ export function searchEmployees(query: string, employees: Employee[]): Employee[
   return employees.filter(e => e.name.toLowerCase().includes(q)).slice(0, 12);
 }
 
+/** Returns unique team names matching a query (case-insensitive) */
+export function searchTeams(query: string, employees: Employee[]): string[] {
+  if (!query.trim()) return [];
+  const q = query.toLowerCase();
+  const teams = [...new Set(employees.map(e => e.team).filter(Boolean))];
+  return teams.filter(t => t.toLowerCase().includes(q)).slice(0, 8);
+}
+
+/** Returns unique group names matching a query (case-insensitive) */
+export function searchGroups(query: string, employees: Employee[]): string[] {
+  if (!query.trim()) return [];
+  const q = query.toLowerCase();
+  const groups = [...new Set(employees.map(e => e.group).filter(Boolean))];
+  return groups.filter(g => g.toLowerCase().includes(q)).slice(0, 8);
+}
+
+/**
+ * Find the Team Manager (SM) employee for a given team name.
+ * First looks for an employee with role SM in that team; falls back to
+ * looking up the teamManager name from any employee in the team.
+ */
+export function findTeamSM(teamName: string, employees: Employee[]): Employee | null {
+  const direct = employees.find(
+    e => e.team === teamName && normalizeRole(e.role) === 'SM',
+  );
+  if (direct) return direct;
+  const anyInTeam = employees.find(e => e.team === teamName && e.teamManager);
+  if (anyInTeam) {
+    return employees.find(e => e.name === anyInTeam.teamManager) ?? null;
+  }
+  return null;
+}
+
+/**
+ * Find the Group Manager (GM) employee for a given group name.
+ * First looks for an employee with role GM in that group; falls back to
+ * looking up the groupManager name from any employee in the group.
+ */
+export function findGroupGM(groupName: string, employees: Employee[]): Employee | null {
+  const direct = employees.find(
+    e => e.group === groupName && normalizeRole(e.role) === 'GM',
+  );
+  if (direct) return direct;
+  const anyInGroup = employees.find(e => e.group === groupName && e.groupManager);
+  if (anyInGroup) {
+    return employees.find(e => e.name === anyInGroup.groupManager) ?? null;
+  }
+  return null;
+}
+
 /** Returns org statistics */
 export function getOrgStats(employees: Employee[]) {
   const teams = new Set(employees.map(e => e.team).filter(Boolean));
