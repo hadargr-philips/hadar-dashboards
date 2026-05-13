@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Network, Users, GitBranch, Layers, BarChart2, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
-import UploadArea from './UploadArea';
+import { Network, Users, GitBranch, Layers, BarChart2, ChevronDown, ChevronUp, ArrowRight, Loader2, Settings } from 'lucide-react';
 import SearchBar from './SearchBar';
 import RoleBadge from './RoleBadge';
 import { useEmployeeStore } from '../store/useEmployeeStore';
@@ -68,10 +67,12 @@ function RecentCard({ employee, onClick }: { employee: Employee; onClick: () => 
 }
 
 export default function HomePage() {
-  const { employees, fileName, fileDate, selectEmployee } = useEmployeeStore(s => ({
+  const { employees, fileName, fileDate, siteTitle, isLoading, selectEmployee } = useEmployeeStore(s => ({
     employees: s.employees,
     fileName: s.fileName,
     fileDate: s.fileDate,
+    siteTitle: s.siteTitle,
+    isLoading: s.isLoading,
     selectEmployee: s.selectEmployee,
   }));
 
@@ -100,7 +101,7 @@ export default function HomePage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
-              Philips R&amp;D Dynamic Org Chart Explorer
+              {siteTitle}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Search employees or teams and explore organizational hierarchy visually
@@ -118,18 +119,39 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Upload */}
-        {!hasData && (
-          <div className="w-full max-w-2xl animate-fade-in">
-            <div className="mb-6 text-center">
-              <p className="text-base text-gray-600 dark:text-gray-300 font-medium">
-                Get started by uploading your organization's Excel file
-              </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                The file should contain employee data with hierarchy columns
-              </p>
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex flex-col items-center gap-4 py-16 animate-fade-in">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading org chart data…</p>
+          </div>
+        )}
+
+        {/* No data state */}
+        {!isLoading && !hasData && (
+          <div className="w-full max-w-md text-center animate-fade-in py-16">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+              <Network className="w-8 h-8 text-gray-400" />
             </div>
-            <UploadArea />
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              No data available
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              The org chart has not been configured yet.<br />
+              Contact the admin to upload employee data.
+            </p>
+          </div>
+        )}
+
+        {/* Admin link (shown in no-data state) */}
+        {!isLoading && !hasData && (
+          <div className="mt-4 text-center">
+            <a
+              href="#admin"
+              className="inline-flex items-center gap-1.5 text-xs text-gray-300 dark:text-gray-700 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+            >
+              <Settings className="w-3 h-3" /> Admin
+            </a>
           </div>
         )}
 
@@ -266,9 +288,14 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Replace file link */}
-            <div className="mt-8 text-center">
-              <UploadArea />
+            {/* Admin link */}
+            <div className="mt-6 text-center">
+              <a
+                href="#admin"
+                className="inline-flex items-center gap-1.5 text-xs text-gray-300 dark:text-gray-700 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              >
+                <Settings className="w-3 h-3" /> Admin
+              </a>
             </div>
           </div>
         )}

@@ -1,14 +1,20 @@
 import { create } from 'zustand';
 import { Employee, Role } from '../types/employee';
 import { normalizeRole } from '../utils/hierarchyBuilder';
+import { loadOrgConfig } from '../lib/db';
 
 type Page = 'home' | 'orgchart';
+
+const DEFAULT_TITLE = 'Philips R&D Dynamic Org Chart Explorer';
 
 interface EmployeeStore {
   // Data
   employees: Employee[];
   fileName: string;
   fileDate: string;
+  siteTitle: string;
+  isLoading: boolean;
+  lastUpdated: string;
 
   // Navigation
   currentPage: Page;
@@ -21,6 +27,8 @@ interface EmployeeStore {
 
   // Actions
   setEmployees: (employees: Employee[], fileName: string, fileDate?: string) => void;
+  setSiteTitle: (title: string) => void;
+  loadFromDb: () => Promise<void>;
   selectEmployee: (employee: Employee, effectiveRole?: Role) => void;
   goHome: () => void;
   toggleDarkMode: () => void;
@@ -36,6 +44,9 @@ export const useEmployeeStore = create<EmployeeStore>((set) => ({
   employees: [],
   fileName: '',
   fileDate: '',
+  siteTitle: DEFAULT_TITLE,
+  isLoading: false,
+  lastUpdated: '',
   currentPage: 'home',
   selectedEmployee: null,
   selectedEffectiveRole: '',
@@ -44,6 +55,25 @@ export const useEmployeeStore = create<EmployeeStore>((set) => ({
 
   setEmployees: (employees, fileName, fileDate) =>
     set({ employees, fileName, fileDate: fileDate ?? '', currentPage: 'home', selectedEmployee: null, selectedEffectiveRole: '' }),
+
+  setSiteTitle: (title) => set({ siteTitle: title || DEFAULT_TITLE }),
+
+  loadFromDb: async () => {
+    set({ isLoading: true });
+    const config = await loadOrgConfig();
+    if (config) {
+      set({
+        employees: Array.isArray(config.employees) ? config.employees : [],
+        fileName: config.file_name ?? '',
+        fileDate: config.file_date ?? '',
+        siteTitle: config.title || DEFAULT_TITLE,
+        lastUpdated: config.updated_at ?? '',
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: false });
+    }
+  },
 
   selectEmployee: (employee, effectiveRole) =>
     set({
@@ -71,5 +101,5 @@ export const useEmployeeStore = create<EmployeeStore>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   clearData: () =>
-    set({ employees: [], fileName: '', fileDate: '', currentPage: 'home', selectedEmployee: null }),
+    set({ employees: [], fileName: '', fileDate: '', lastUpdated: '', currentPage: 'home', selectedEmployee: null }),
 }));

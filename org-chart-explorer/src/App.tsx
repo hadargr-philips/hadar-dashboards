@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Moon, Sun, Network } from 'lucide-react';
 import { useEmployeeStore } from './store/useEmployeeStore';
 import HomePage from './components/HomePage';
 import OrgChartPage from './components/OrgChartPage';
+import AdminPage from './components/AdminPage';
 
 function Header() {
   const { currentPage, darkMode, toggleDarkMode, goHome } = useEmployeeStore(s => ({
@@ -43,38 +44,52 @@ function Header() {
 }
 
 export default function App() {
-  const { currentPage, darkMode, toggleDarkMode } = useEmployeeStore(s => ({
+  const { currentPage, darkMode, toggleDarkMode, loadFromDb } = useEmployeeStore(s => ({
     currentPage: s.currentPage,
     darkMode: s.darkMode,
     toggleDarkMode: s.toggleDarkMode,
+    loadFromDb: s.loadFromDb,
   }));
+
+  const [isAdmin, setIsAdmin] = useState(() => window.location.hash === '#admin');
+
+  useEffect(() => {
+    // Load org data from DB on startup
+    loadFromDb();
+
+    // Hash-based routing for the admin panel
+    const onHashChange = () => setIsAdmin(window.location.hash === '#admin');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [loadFromDb]);
+
+  const closeAdmin = () => {
+    history.pushState('', document.title, window.location.pathname + window.location.search);
+    setIsAdmin(false);
+  };
 
   return (
     <div className={`${darkMode ? 'dark' : ''} min-h-screen`}>
-      {/* Dark mode toggle available on org chart page too */}
-      {currentPage === 'orgchart' && (
-        <div className="fixed bottom-4 right-4 z-50">
-          {/* Dark mode handled in OrgChartPage header */}
-        </div>
-      )}
-
-      <Header />
-
-      {currentPage === 'home' && <HomePage />}
-      {currentPage === 'orgchart' && <OrgChartPage />}
-
-      {/* Dark mode floating button on org chart page */}
-      {currentPage === 'orgchart' && (
-        <button
-          onClick={toggleDarkMode}
-          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="fixed bottom-20 right-4 z-50 p-2.5 rounded-full shadow-lg
-                     bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-                     text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
-                     hover:shadow-xl transition-all"
-        >
-          {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+      {isAdmin ? (
+        <AdminPage onClose={closeAdmin} />
+      ) : (
+        <>
+          <Header />
+          {currentPage === 'home' && <HomePage />}
+          {currentPage === 'orgchart' && <OrgChartPage />}
+          {currentPage === 'orgchart' && (
+            <button
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="fixed bottom-20 right-4 z-50 p-2.5 rounded-full shadow-lg
+                         bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                         text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
+                         hover:shadow-xl transition-all"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
