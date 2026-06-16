@@ -20,15 +20,15 @@ export default function MilestoneMarker({ stage, leftPct }: Props) {
       onMouseLeave={() => setShowTip(false)}
     >
       {/* Diamond */}
-      <div className="w-4 h-4 rotate-45 border-2 border-indigo-500 bg-indigo-500 flex-shrink-0 shadow-sm cursor-default" />
+      <div className="w-5 h-5 rotate-45 border-2 border-indigo-500 bg-indigo-500 flex-shrink-0 shadow-sm cursor-default" />
 
       {/* Always-visible date label */}
       <span
-        className="absolute text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none"
+        className="absolute text-[14px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded whitespace-nowrap pointer-events-none z-20"
         style={
           flipLeft
-            ? { right: 'calc(100% + 6px)', transform: 'translateY(0)' }
-            : { left: 'calc(100% + 6px)', transform: 'translateY(0)' }
+            ? { right: 'calc(100% + 8px)', transform: 'translateY(0)' }
+            : { left: 'calc(100% + 8px)', transform: 'translateY(0)' }
         }
       >
         ◆ {fmtDate(stage.start_date)}

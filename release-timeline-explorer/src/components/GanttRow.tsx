@@ -59,17 +59,17 @@ function StageBar({ stage, months }: { stage: Stage; months: MonthCol[] }) {
 
   return (
     <>
-      {/* Floating label above narrow bars */}
+      {/* Floating label above narrow bars — sits above the row, no overlap with bar */}
       {isNarrow && (
         <div
-          className="absolute z-10 pointer-events-none"
+          className="absolute z-20 pointer-events-none"
           style={{
             left: `${pos.leftPct + pos.widthPct / 2}%`,
-            bottom: 'calc(50% + 15px)',
+            bottom: 'calc(50% + 22px)',
             transform: 'translateX(-50%)',
           }}
         >
-          <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded whitespace-nowrap">
+          <span className="text-[13px] font-semibold text-slate-600 bg-white border border-slate-300 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">
             {dateStr}
           </span>
         </div>
@@ -80,7 +80,7 @@ function StageBar({ stage, months }: { stage: Stage; months: MonthCol[] }) {
         style={{
           left: `${pos.leftPct}%`,
           width: `${pos.widthPct}%`,
-          height: '26px',
+          height: '38px',
           backgroundColor: color,
         }}
         onMouseEnter={() => setShowTip(true)}
@@ -88,16 +88,16 @@ function StageBar({ stage, months }: { stage: Stage; months: MonthCol[] }) {
       >
         {isWide && (
           <>
-            <span className="text-white text-[11px] font-semibold pl-2 truncate flex-shrink select-none" style={{ textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+            <span className="text-white text-[14px] font-semibold pl-3 truncate flex-shrink select-none" style={{ textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>
               {stage.name}
             </span>
-            <span className="text-white text-[11px] font-semibold pr-2 ml-auto flex-shrink-0 select-none whitespace-nowrap" style={{ textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+            <span className="text-white text-[14px] font-semibold pr-3 ml-auto flex-shrink-0 select-none whitespace-nowrap" style={{ textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>
               {dateStr}
             </span>
           </>
         )}
         {isMedium && (
-          <span className="text-white text-[11px] font-semibold px-2 w-full text-center select-none" style={{ textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+          <span className="text-white text-[14px] font-semibold px-2 w-full text-center select-none" style={{ textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>
             {startStr}
           </span>
         )}
@@ -160,7 +160,7 @@ export default function GanttRow({ release, stages, months }: Props) {
               ? <ChevronDown className="w-4 h-4" />
               : <ChevronRight className="w-4 h-4" />}
           </button>
-          <span className="font-mono text-sm font-bold text-gray-800 truncate flex-1" title={release.number}>
+          <span className="font-mono text-[15px] font-bold text-gray-600 truncate flex-1" title={release.number}>
             {release.number}
           </span>
           <span className={`flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded ring-1 ring-inset ${typeBadge}`}>
@@ -200,9 +200,9 @@ export default function GanttRow({ release, stages, months }: Props) {
 
       {/* ── Stage sub-rows ── */}
       {expanded && sortedStages.map(stage => (
-        <div key={stage.id} className="flex items-stretch h-11 hover:bg-gray-50/60 transition-colors">
+        <div key={stage.id} className="flex items-stretch h-10 hover:bg-gray-50/60 transition-colors">
           <div className="w-52 flex-shrink-0 flex items-center px-3 pl-10 border-r border-gray-100">
-            <span className="text-[13px] text-gray-500 truncate" title={stage.name}>
+            <span className="text-[15px] text-gray-500 truncate" title={stage.name}>
               {stage.name}
             </span>
           </div>
