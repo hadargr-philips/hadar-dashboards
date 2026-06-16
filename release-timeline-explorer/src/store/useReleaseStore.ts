@@ -78,6 +78,7 @@ interface ReleaseStore {
   selectedReleaseId: string | null;
 
   addRelease: (number: string, type: ReleaseType) => void;
+  importReleases: (incoming: Array<{ number: string; type: ReleaseType }>) => { added: number; skipped: number };
   updateRelease: (id: string, patch: Partial<Pick<Release, 'number' | 'type'>>) => void;
   deleteRelease: (id: string) => void;
 
@@ -110,6 +111,39 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
         persist(next, s.stages);
         return { releases: next };
       }),
+
+    importReleases: (incoming) => {
+      const current = get().releases;
+      const stages = get().stages;
+      const existing = new Set(current.map(r => r.number.trim().toLowerCase()));
+      const toAdd = incoming.filter(r => {
+        const key = r.number.trim().toLowerCase();
+        if (!key || existing.has(key)) return false;
+        existing.add(key);
+        return true;
+      });
+
+      if (toAdd.length === 0) {
+        return { added: 0, skipped: incoming.length };
+      }
+
+      const now = new Date().toISOString();
+      const next = [
+        ...current,
+        ...toAdd.map((r, index) => ({
+          id: uid(),
+          number: r.number,
+          type: r.type,
+          sort_order: current.length + index + 1,
+          created_at: now,
+        })),
+      ];
+
+      persist(next, stages);
+      set({ releases: next });
+
+      return { added: toAdd.length, skipped: incoming.length - toAdd.length };
+    },
 
     updateRelease: (id, patch) =>
       set(s => {

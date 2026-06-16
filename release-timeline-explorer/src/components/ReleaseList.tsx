@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, ChevronRight } from 'lucide-react';
 import { Release } from '../types/release';
 import { useReleaseStore } from '../store/useReleaseStore';
 import ReleaseForm from './ReleaseForm';
+import { DEFAULT_LIST_URL, fetchSharePointReleases } from '../lib/sharepoint';
 
 const TYPE_BADGE: Record<string, string> = {
   LR:  'bg-blue-100 text-blue-700',
@@ -12,11 +13,12 @@ const TYPE_BADGE: Record<string, string> = {
 };
 
 export default function ReleaseList() {
-  const { releases, stages, addRelease, updateRelease, deleteRelease, selectRelease } =
+  const { releases, stages, addRelease, importReleases, updateRelease, deleteRelease, selectRelease } =
     useReleaseStore(s => ({
       releases:      s.releases,
       stages:        s.stages,
       addRelease:    s.addRelease,
+      importReleases: s.importReleases,
       updateRelease: s.updateRelease,
       deleteRelease: s.deleteRelease,
       selectRelease: s.selectRelease,
@@ -24,6 +26,7 @@ export default function ReleaseList() {
 
   const [showAdd,       setShowAdd]       = useState(false);
   const [editRelease,   setEditRelease]   = useState<Release | null>(null);
+  const [syncing,       setSyncing]       = useState(false);
 
   const sorted = [...releases].sort((a, b) => a.sort_order - b.sort_order);
   const stageCount = (rid: string) => stages.filter(s => s.release_id === rid).length;
@@ -32,19 +35,43 @@ export default function ReleaseList() {
     if (window.confirm('Delete this release and all its stages?')) deleteRelease(id);
   };
 
+  const handleSyncFromSharePoint = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const incoming = await fetchSharePointReleases(DEFAULT_LIST_URL);
+      const { added, skipped } = importReleases(incoming);
+      window.alert(`SharePoint sync completed. Added ${added} new release(s), skipped ${skipped}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error.';
+      window.alert(`SharePoint sync failed: ${message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm text-gray-500">
           {releases.length} release{releases.length !== 1 ? 's' : ''}
         </span>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Release
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncFromSharePoint}
+            disabled={syncing}
+            className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {syncing ? 'Syncing...' : 'Sync SharePoint'}
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Release
+          </button>
+        </div>
       </div>
 
       {sorted.length === 0 ? (
