@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Plus, Edit2, Trash2, ChevronRight } from 'lucide-react';
 import { Release } from '../types/release';
 import { useReleaseStore } from '../store/useReleaseStore';
 import ReleaseForm from './ReleaseForm';
-import { DEFAULT_LIST_URL, fetchSharePointReleases } from '../lib/sharepoint';
+import { parseReleaseUploadFile } from '../lib/uploadReleaseFile';
 
 const TYPE_BADGE: Record<string, string> = {
   LR:  'bg-blue-100 text-blue-700',
@@ -13,12 +13,12 @@ const TYPE_BADGE: Record<string, string> = {
 };
 
 export default function ReleaseList() {
-  const { releases, stages, addRelease, importReleases, updateRelease, deleteRelease, selectRelease } =
+  const { releases, stages, addRelease, syncUploadedReleases, updateRelease, deleteRelease, selectRelease } =
     useReleaseStore(s => ({
       releases:      s.releases,
       stages:        s.stages,
       addRelease:    s.addRelease,
-      importReleases: s.importReleases,
+      syncUploadedReleases: s.syncUploadedReleases,
       updateRelease: s.updateRelease,
       deleteRelease: s.deleteRelease,
       selectRelease: s.selectRelease,
@@ -26,7 +26,8 @@ export default function ReleaseList() {
 
   const [showAdd,       setShowAdd]       = useState(false);
   const [editRelease,   setEditRelease]   = useState<Release | null>(null);
-  const [syncing,       setSyncing]       = useState(false);
+  const [uploading,     setUploading]     = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const sorted = [...releases].sort((a, b) => a.sort_order - b.sort_order);
   const stageCount = (rid: string) => stages.filter(s => s.release_id === rid).length;
@@ -35,18 +36,20 @@ export default function ReleaseList() {
     if (window.confirm('Delete this release and all its stages?')) deleteRelease(id);
   };
 
-  const handleSyncFromSharePoint = async () => {
-    if (syncing) return;
-    setSyncing(true);
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
     try {
-      const incoming = await fetchSharePointReleases(DEFAULT_LIST_URL);
-      const { added, skipped } = importReleases(incoming);
-      window.alert(`SharePoint sync completed. Added ${added} new release(s), skipped ${skipped}.`);
+      const rows = await parseReleaseUploadFile(file);
+      const { added, updated, removed, skipped } = syncUploadedReleases(rows);
+      window.alert(`Upload sync completed. Added ${added}, updated ${updated}, removed ${removed}, skipped ${skipped}.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error.';
-      window.alert(`SharePoint sync failed: ${message}`);
+      window.alert(`Upload sync failed: ${message}`);
     } finally {
-      setSyncing(false);
+      setUploading(false);
+      event.target.value = '';
     }
   };
 
@@ -56,13 +59,20 @@ export default function ReleaseList() {
         <span className="text-sm text-gray-500">
           {releases.length} release{releases.length !== 1 ? 's' : ''}
         </span>
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          className="hidden"
+          onChange={handleUpload}
+        />
         <div className="flex items-center gap-2">
           <button
-            onClick={handleSyncFromSharePoint}
-            disabled={syncing}
+            onClick={() => uploadInputRef.current?.click()}
+            disabled={uploading}
             className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {syncing ? 'Syncing...' : 'Sync SharePoint'}
+            {uploading ? 'Uploading...' : 'Upload SP/GSP excel'}
           </button>
           <button
             onClick={() => setShowAdd(true)}

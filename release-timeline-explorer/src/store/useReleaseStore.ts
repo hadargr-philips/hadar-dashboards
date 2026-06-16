@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Release, Stage, ReleaseType } from '../types/release';
+import { UploadedReleaseRow } from '../lib/uploadReleaseFile';
 
 const LS_RELEASES = 'rl-releases-v1';
 const LS_STAGES = 'rl-stages-v1';
@@ -79,6 +80,7 @@ interface ReleaseStore {
 
   addRelease: (number: string, type: ReleaseType) => void;
   importReleases: (incoming: Array<{ number: string; type: ReleaseType }>) => { added: number; skipped: number };
+  syncUploadedReleases: (incoming: UploadedReleaseRow[]) => { added: number; updated: number; removed: number; skipped: number };
   updateRelease: (id: string, patch: Partial<Pick<Release, 'number' | 'type'>>) => void;
   deleteRelease: (id: string) => void;
 
@@ -143,6 +145,118 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
       set({ releases: next });
 
       return { added: toAdd.length, skipped: incoming.length - toAdd.length };
+    },
+
+    syncUploadedReleases: (incoming) => {
+      const currentReleases = get().releases;
+      const currentStages = get().stages;
+
+      const releasesByNumber = new Map(currentReleases.map(r => [r.number.trim().toLowerCase(), r] as const));
+      let nextReleases = [...currentReleases];
+      let nextStages = [...currentStages];
+      let added = 0;
+      let updated = 0;
+      let removed = 0;
+      let skipped = 0;
+
+      const now = new Date().toISOString();
+
+      for (const row of incoming) {
+        const numberKey = row.number.trim().toLowerCase();
+        if (!numberKey) {
+          skipped += 1;
+          continue;
+        }
+
+        const existing = releasesByNumber.get(numberKey);
+
+        if (row.isReleased) {
+          if (!existing) {
+            skipped += 1;
+            continue;
+          }
+
+          nextReleases = nextReleases.filter(r => r.id !== existing.id);
+          nextStages = nextStages.filter(s => s.release_id !== existing.id);
+          releasesByNumber.delete(numberKey);
+          removed += 1;
+          continue;
+        }
+
+        if (!existing) {
+          const newRelease: Release = {
+            id: uid(),
+            number: row.number,
+            type: row.type,
+            sort_order: nextReleases.length + 1,
+            created_at: now,
+          };
+          nextReleases.push(newRelease);
+          releasesByNumber.set(numberKey, newRelease);
+          nextStages.push({
+            id: uid(),
+            release_id: newRelease.id,
+            name: 'Release',
+            status: row.status,
+            start_date: row.start_date,
+            end_date: null,
+            dependencies: '',
+            comments: '',
+            sort_order: 1,
+            created_at: now,
+          });
+          added += 1;
+          continue;
+        }
+
+        nextReleases = nextReleases.map(r =>
+          r.id === existing.id ? { ...r, type: row.type } : r
+        );
+        releasesByNumber.set(numberKey, { ...existing, type: row.type });
+
+        const existingReleaseStage = nextStages.find(
+          s => s.release_id === existing.id && s.name.trim().toLowerCase() === 'release'
+        );
+        if (existingReleaseStage) {
+          nextStages = nextStages.map(s =>
+            s.id === existingReleaseStage.id
+              ? {
+                  ...s,
+                  status: row.status,
+                  start_date: row.start_date,
+                  end_date: null,
+                }
+              : s
+          );
+        } else {
+          const sortOrder =
+            nextStages.filter(s => s.release_id === existing.id).reduce((max, s) => Math.max(max, s.sort_order), 0) + 1;
+          nextStages.push({
+            id: uid(),
+            release_id: existing.id,
+            name: 'Release',
+            status: row.status,
+            start_date: row.start_date,
+            end_date: null,
+            dependencies: '',
+            comments: '',
+            sort_order: sortOrder,
+            created_at: now,
+          });
+        }
+
+        updated += 1;
+      }
+
+      nextReleases = nextReleases.map((release, index) => ({
+        ...release,
+        sort_order: index + 1,
+      }));
+
+      persist(nextReleases, nextStages);
+      set({ releases: nextReleases, stages: nextStages });
+
+      return { added, updated, removed, skipped };
     },
 
     updateRelease: (id, patch) =>
