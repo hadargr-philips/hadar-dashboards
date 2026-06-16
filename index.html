@@ -2,10 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=client-pi-snapshot/" />
-  <title>hadar-dashboards</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hadar Dashboards</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f8fafc; margin: 0; padding: 2rem; }
+    h1 { color: #1e293b; font-size: 1.5rem; margin-bottom: 1.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; max-width: 700px; }
+    a.card { display: block; padding: 1.25rem 1.5rem; background: white; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; color: #1e293b; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: box-shadow .15s, border-color .15s; }
+    a.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); border-color: #93c5fd; }
+    .card .icon { font-size: 2rem; margin-bottom: .5rem; }
+    .card .desc { font-size: .8rem; color: #64748b; font-weight: 400; margin-top: .25rem; }
+  </style>
 </head>
 <body>
-  <a href="client-pi-snapshot/">Redirecting to Client PI Snapshot&hellip;</a>
+  <h1>📊 Hadar Dashboards</h1>
+  <div class="grid">
+    <a class="card" href="release-timeline/">
+      <div class="icon">📅</div>
+      Release Timeline
+      <div class="desc">Interactive Gantt chart for software releases</div>
+    </a>
+    <a class="card" href="client-pi-snapshot/">
+      <div class="icon">🗂️</div>
+      Client PI Snapshot
+      <div class="desc">PI planning client epics snapshot</div>
+    </a>
+    <a class="card" href="org-chart/">
+      <div class="icon">🌐</div>
+      Org Chart Explorer
+      <div class="desc">Dynamic R&amp;D organizational chart</div>
+    </a>
+  </div>
 </body>
 </html>
