@@ -8,6 +8,17 @@ export interface MonthCol {
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+/** Format a YYYY-MM-DD string as "Jun 16" */
+export function fmtDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${MONTH_NAMES[m - 1]} ${d}`;
+}
+
+/** Format a date range as "Jun 16 – Sep 11" */
+export function fmtRange(startDate: string, endDate: string): string {
+  return `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
+}
+
 /** Returns 12 MonthCol objects starting from the given date's month. */
 export function getMonthColumns(fromDate: Date = new Date(), count = 12): MonthCol[] {
   return Array.from({ length: count }, (_, i) => {

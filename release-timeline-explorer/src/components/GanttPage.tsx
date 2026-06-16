@@ -5,11 +5,12 @@ import { getMonthColumns, dateToPercent } from '../utils/ganttHelpers';
 import GanttRow from './GanttRow';
 
 const STATUS_LEGEND = [
-  { label: 'In Progress',        color: '#3b82f6' },
-  { label: 'Planning',           color: '#f59e0b' },
-  { label: 'Completed',          color: '#22c55e' },
-  { label: 'New',                color: '#9ca3af' },
-  { label: 'Last Build Testing', color: '#a855f7' },
+  { label: 'In Progress',        color: '#2563eb' },
+  { label: 'Planning',           color: '#d97706' },
+  { label: 'Completed',          color: '#16a34a' },
+  { label: 'New',                color: '#64748b' },
+  { label: 'Last Build Testing', color: '#9333ea' },
+  { label: 'No Status',          color: '#475569' },
   { label: 'Milestone ◆',       color: '#6366f1' },
 ];
 
@@ -56,7 +57,7 @@ export default function GanttPage({ onBack, onAdmin }: Props) {
           {STATUS_LEGEND.map(({ label, color }) => (
             <div key={label} className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
-              <span className="text-[10px] text-gray-500">{label}</span>
+              <span className="text-xs text-gray-500">{label}</span>
             </div>
           ))}
         </div>
@@ -77,18 +78,18 @@ export default function GanttPage({ onBack, onAdmin }: Props) {
 
       {/* ── Gantt chart (scrollable) ── */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-[1100px]">
+        <div className="min-w-[1280px]">
 
           {/* Month header (sticky within scroll container) */}
           <div className="sticky top-0 z-20 flex bg-white border-b border-gray-200 shadow-sm">
-            <div className="w-44 flex-shrink-0 border-r border-gray-200 flex items-center px-3 py-2">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Release</span>
+            <div className="w-52 flex-shrink-0 border-r border-gray-200 flex items-center px-3 py-2.5">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Release</span>
             </div>
             <div className="flex-1 flex">
               {months.map((m, i) => (
                 <div
                   key={i}
-                  className="flex-1 text-center py-2 border-l border-gray-200 text-[11px] font-medium text-gray-500 select-none"
+                  className="flex-1 text-center py-2.5 border-l border-gray-200 text-[13px] font-semibold text-slate-500 select-none"
                 >
                   {m.label}
                 </div>
@@ -103,7 +104,7 @@ export default function GanttPage({ onBack, onAdmin }: Props) {
               <div
                 className="absolute top-0 bottom-0 z-10 pointer-events-none"
                 style={{
-                  left: `calc(11rem + (100% - 11rem) * ${todayPct / 100})`,
+                  left: `calc(13rem + (100% - 13rem) * ${todayPct / 100})`,
                   width: '2px',
                   background: 'rgba(239,68,68,0.45)',
                 }}
