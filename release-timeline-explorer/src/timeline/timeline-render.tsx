@@ -44,7 +44,7 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
   const barColor = getBarColor(row.type, row.releaseNumber);
 
   return (
-    <div className="flex-1 relative" style={{ minHeight: `${rowHeight}px` }}>
+    <div className="flex-1 relative overflow-hidden" style={{ minHeight: `${rowHeight}px` }}>
       <div className="absolute inset-0" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount}))` }} />
 
       {row.phaseBars.map((bar) => {
@@ -55,7 +55,7 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
         return (
           <div
             key={bar.id}
-            className="absolute rounded-lg shadow-sm"
+            className="absolute rounded-lg shadow-sm overflow-hidden"
             style={{
               left: `${bar.leftPct}%`,
               width: `${bar.widthPct}%`,
@@ -67,13 +67,13 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
             title={tooltip}
           >
             {mode === 'twoLine' && (
-              <div className="h-full px-3 py-1.5 leading-tight overflow-hidden">
-                <div className="text-[14px] font-semibold truncate">{bar.label}</div>
-                <div className="text-[12px] opacity-90 truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
+              <div className="h-full flex flex-col items-center justify-center px-2 leading-tight">
+                <div className="text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
+                <div className="text-[11px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
               </div>
             )}
             {mode === 'oneLine' && (
-              <div className="h-full px-3 flex items-center text-[13px] font-semibold truncate">{bar.label}</div>
+              <div className="h-full px-2 flex items-center justify-center text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
             )}
           </div>
         );
@@ -103,26 +103,32 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
   );
 }
 
+// Layout rule: SP and GSP releases are rendered as milestone diamonds on a single consolidated row,
+// each diamond positioned at the release date. Multiple releases in the same month are spread left-to-right.
 function ConsolidatedRowBody({ row }: { row: TimelineConsolidatedRow }) {
+  const diamondColor = TIMELINE_COLORS.releaseBar[row.type];
   return (
-    <div className="flex-1 relative" style={{ minHeight: '92px' }}>
+    <div className="flex-1 relative" style={{ minHeight: '88px' }}>
       <div className="absolute inset-0" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount}))` }} />
       {row.bars.map((bar) => (
         <div
           key={bar.id}
-          className="absolute rounded-md shadow-sm px-2 py-1"
-          style={{
-            left: `${bar.leftPct}%`,
-            width: `${bar.widthPct}%`,
-            top: '24px',
-            height: '44px',
-            backgroundColor: TIMELINE_COLORS.releaseBar[row.type],
-            color: '#fff',
-          }}
-          title={`${bar.label} | ${formatDateRange(bar.startDate, bar.endDate)}`}
+          className="absolute flex flex-col items-center"
+          style={{ left: `${bar.leftPct + bar.widthPct / 2}%`, transform: 'translateX(-50%)', top: '12px' }}
+          title={`${bar.label} | ${formatShortDate(bar.startDate)}`}
         >
-          <div className="text-[13px] font-semibold truncate">{bar.label}</div>
-          <div className="text-[11px] opacity-90 truncate">{bar.subtitle}</div>
+          {/* Diamond marker */}
+          <div
+            className="w-4 h-4 rotate-45 rounded-sm shadow-sm"
+            style={{ backgroundColor: diamondColor }}
+          />
+          {/* Release number label below diamond */}
+          <div
+            className="mt-2 text-[11px] font-semibold whitespace-nowrap px-1 py-0.5 rounded"
+            style={{ color: diamondColor }}
+          >
+            {bar.label}
+          </div>
         </div>
       ))}
     </div>
