@@ -3,6 +3,7 @@ import { X, Shield, Eye, EyeOff, ChevronLeft, Settings } from 'lucide-react';
 import { useReleaseStore } from '../store/useReleaseStore';
 import ReleaseList from './ReleaseList';
 import StageList from './StageList';
+import { ADMIN_PANEL_SCALE } from '../timeline/timeline-admin';
 
 const ADMIN_PASSWORD = 'Phil2026!';
 
@@ -97,9 +98,18 @@ export default function AdminPage({ onClose }: Props) {
   }
 
   const selectedRelease = releases.find(r => r.id === selectedReleaseId) ?? null;
+  const scaledWidthPct = 100 / ADMIN_PANEL_SCALE;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-auto">
+      <div
+        style={{
+          transform: `scale(${ADMIN_PANEL_SCALE})`,
+          transformOrigin: 'top center',
+          width: `${scaledWidthPct}%`,
+          margin: '0 auto',
+        }}
+      >
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shadow-sm">
         {selectedRelease ? (
@@ -143,6 +153,7 @@ export default function AdminPage({ onClose }: Props) {
           ? <StageList releaseId={selectedRelease.id} />
           : <ReleaseList />
         }
+      </div>
       </div>
     </div>
   );

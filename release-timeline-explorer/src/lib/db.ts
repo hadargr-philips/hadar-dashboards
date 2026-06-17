@@ -23,8 +23,18 @@ create table if not exists stages (
   created_at timestamptz default now()
 );
 
+create table if not exists go_lives (
+  id uuid primary key default gen_random_uuid(),
+  release text not null,
+  customer_site text not null,
+  objective text not null,
+  planned_date date not null,
+  created_at timestamptz default now()
+);
+
 alter table releases enable row level security;
 alter table stages enable row level security;
+alter table go_lives enable row level security;
 
 create policy "public_read"   on releases for select using (true);
 create policy "public_insert" on releases for insert with check (true);
@@ -34,4 +44,9 @@ create policy "public_delete" on releases for delete using (true);
 create policy "public_read"   on stages for select using (true);
 create policy "public_insert" on stages for insert with check (true);
 create policy "public_update" on stages for update using (true);
-create policy "public_delete" on stages for delete using (true);`;
+create policy "public_delete" on stages for delete using (true);
+
+create policy "public_read"   on go_lives for select using (true);
+create policy "public_insert" on go_lives for insert with check (true);
+create policy "public_update" on go_lives for update using (true);
+create policy "public_delete" on go_lives for delete using (true);`;

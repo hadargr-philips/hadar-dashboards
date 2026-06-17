@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { Release, Stage, ReleaseType } from '../types/release';
+import { Release, Stage, ReleaseType, GoLiveItem } from '../types/release';
 import { UploadedReleaseRow } from '../lib/uploadReleaseFile';
 
 const LS_RELEASES = 'rl-releases-v1';
 const LS_STAGES = 'rl-stages-v1';
+const LS_GOLIVES = 'rl-golives-v1';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -57,6 +58,25 @@ const SEED_STAGES: Stage[] = [
   { id: 's22', release_id: 'r10', name: 'Release', status: 'Last Build Testing', start_date: '2026-05-21', end_date: null, dependencies: '', comments: '', sort_order: 1, created_at: _t },
 ];
 
+const SEED_GOLIVES: GoLiveItem[] = [
+  {
+    id: 'gl1',
+    release: '12.2.8.750',
+    customer_site: 'North Valley Hospital',
+    objective: 'Regional production launch and first customer adoption',
+    planned_date: '2026-09-28',
+    created_at: _t,
+  },
+  {
+    id: 'gl2',
+    release: '15.1.2.0',
+    customer_site: 'Metro Imaging Network',
+    objective: 'Large-scale enterprise rollout and migration',
+    planned_date: '2027-10-15',
+    created_at: _t,
+  },
+];
+
 // ── localStorage helpers ─────────────────────────────────────────────────────
 function loadFromLS<T>(key: string, fallback: T): T {
   try {
@@ -76,6 +96,7 @@ function persist(releases: Release[], stages: Stage[]) {
 interface ReleaseStore {
   releases: Release[];
   stages: Stage[];
+  goLives: GoLiveItem[];
   selectedReleaseId: string | null;
 
   addRelease: (number: string, type: ReleaseType) => void;
@@ -97,10 +118,12 @@ interface ReleaseStore {
 export const useReleaseStore = create<ReleaseStore>((set, get) => {
   const releases = loadFromLS<Release[]>(LS_RELEASES, SEED_RELEASES);
   const stages   = loadFromLS<Stage[]>(LS_STAGES,   SEED_STAGES);
+  const goLives  = loadFromLS<GoLiveItem[]>(LS_GOLIVES, SEED_GOLIVES);
 
   return {
     releases,
     stages,
+    goLives,
     selectedReleaseId: null,
 
     addRelease: (number, type) =>

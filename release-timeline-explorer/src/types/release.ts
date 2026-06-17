@@ -21,3 +21,12 @@ export interface Stage {
   sort_order: number;
   created_at: string;
 }
+
+export interface GoLiveItem {
+  id: string;
+  release: string;
+  customer_site: string;
+  objective: string;
+  planned_date: string; // YYYY-MM-DD
+  created_at: string;
+}
