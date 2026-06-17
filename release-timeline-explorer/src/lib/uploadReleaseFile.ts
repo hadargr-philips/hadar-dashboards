@@ -47,7 +47,37 @@ function toDateString(value: unknown): string | null {
   }
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    const isLocalMidnight =
+      value.getHours() === 0 &&
+      value.getMinutes() === 0 &&
+      value.getSeconds() === 0 &&
+      value.getMilliseconds() === 0;
+
+    const isUtcMidnight =
+      value.getUTCHours() === 0 &&
+      value.getUTCMinutes() === 0 &&
+      value.getUTCSeconds() === 0 &&
+      value.getUTCMilliseconds() === 0;
+
+    if (isLocalMidnight && !isUtcMidnight) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (isUtcMidnight && !isLocalMidnight) {
+      const year = value.getUTCFullYear();
+      const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(value.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Ambiguous/non-midnight timestamps: prefer local calendar date.
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   if (typeof value !== 'string') return null;
@@ -60,15 +90,43 @@ function toDateString(value: unknown): string | null {
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
 
-  const dmy = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-  if (dmy) {
-    const [, d, m, y] = dmy;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  // If a full ISO datetime is present, keep the literal calendar date prefix.
+  const isoDateTime = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (isoDateTime) {
+    const [, y, m, d] = isoDateTime;
+    return `${y}-${m}-${d}`;
+  }
+
+  const mdYorDmY = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+.*)?$/);
+  if (mdYorDmY) {
+    const [, p1, p2, y] = mdYorDmY;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+
+    // Resolve ambiguous slashed dates predictably:
+    // - If one side is > 12, that side must be the day.
+    // - If both are <= 12, default to MM/DD/YYYY (source file convention).
+    const month = n1 > 12 ? n2 : n1;
+    const day = n1 > 12 ? n1 : n2;
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
   const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString().slice(0, 10);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export async function parseReleaseUploadFile(file: File): Promise<UploadedReleaseRow[]> {
@@ -80,7 +138,10 @@ export async function parseReleaseUploadFile(file: File): Promise<UploadedReleas
   }
 
   const sheet = workbook.Sheets[firstSheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: '',
+    raw: false,
+  });
   if (!rows.length) return [];
 
   const firstRow = rows[0];
@@ -113,7 +174,7 @@ export async function parseReleaseUploadFile(file: File): Promise<UploadedReleas
     seen.add(key);
 
     const type = normalizeType(row[typeKey]) ?? 'SP';
-    const start_date = toDateString(row[dateKey]) ?? new Date().toISOString().slice(0, 10);
+    const start_date = toDateString(row[dateKey]) ?? getTodayDateString();
     const { status, isReleased } = normalizeStatus(row[statusKey]);
 
     parsedRows.push({
