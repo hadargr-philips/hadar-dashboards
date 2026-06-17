@@ -58,23 +58,18 @@ const SEED_STAGES: Stage[] = [
   { id: 's22', release_id: 'r10', name: 'Release', status: 'Last Build Testing', start_date: '2026-05-21', end_date: null, dependencies: '', comments: '', sort_order: 1, created_at: _t },
 ];
 
+// Hardcoded from Confluence page "2026-2027 Release Plan" -> table "Future Releases".
 const SEED_GOLIVES: GoLiveItem[] = [
-  {
-    id: 'gl1',
-    release: '12.2.8.750',
-    customer_site: 'North Valley Hospital',
-    objective: 'Regional production launch and first customer adoption',
-    planned_date: '2026-09-28',
-    created_at: _t,
-  },
-  {
-    id: 'gl2',
-    release: '15.1.2.0',
-    customer_site: 'Metro Imaging Network',
-    objective: 'Large-scale enterprise rollout and migration',
-    planned_date: '2027-10-15',
-    created_at: _t,
-  },
+  { id: 'gl1', release: '15.1.0.X', customer_site: 'NYP', objective: 'TBD', planned_date: 'August 2026', created_at: _t },
+  { id: 'gl2', release: '15.1.0.X', customer_site: 'Visn1', objective: 'TBD', planned_date: 'Q4', created_at: _t },
+  { id: 'gl3', release: '12.2.X', customer_site: 'UKB - Berlin', objective: 'Super PACS', planned_date: 'Q4', created_at: _t },
+  { id: 'gl4', release: '12.2.X', customer_site: 'Geisinger - NAM', objective: 'VNA', planned_date: 'Q4', created_at: _t },
+  { id: 'gl5', release: '12.2.X', customer_site: 'Atrium', objective: 'Super PACS', planned_date: 'In progress', created_at: _t },
+  { id: 'gl6', release: '12.2.X', customer_site: 'Stamford', objective: 'Cloud + Linux DB', planned_date: 'Test: July', created_at: _t },
+  { id: 'gl7', release: '12.2.X', customer_site: 'Ichilov', objective: 'Client only + WIM 15.1.0.1', planned_date: 'June 2026', created_at: _t },
+  { id: 'gl8', release: '12.2.X', customer_site: 'CHN', objective: 'ISPACS to HSI Vue Cloud', planned_date: 'Q1 2027', created_at: _t },
+  { id: 'gl9', release: '12.2.X', customer_site: 'UCM - NAM', objective: 'Cloud, ISPACS migration', planned_date: 'Q3 2027', created_at: _t },
+  { id: 'gl10', release: '12.2.X', customer_site: 'UNIMED Rio Verde - Brazil', objective: 'Small site - Net new', planned_date: 'Q1 2027', created_at: _t },
 ];
 
 // ── localStorage helpers ─────────────────────────────────────────────────────

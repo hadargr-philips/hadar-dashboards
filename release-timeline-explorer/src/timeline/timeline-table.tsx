@@ -6,6 +6,14 @@ interface TimelineTableProps {
   rows: GoLiveItem[];
 }
 
+function formatPlannedDate(value: string): string {
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  if (isoDate.test(value)) {
+    return formatShortDate(value);
+  }
+  return value;
+}
+
 export function TimelineGoLivesTable({ rows }: TimelineTableProps) {
   return (
     <section className="mt-6 bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -29,17 +37,14 @@ export function TimelineGoLivesTable({ rows }: TimelineTableProps) {
                 <td colSpan={4} className="px-4 py-8 text-center text-slate-400">No go-live records yet.</td>
               </tr>
             ) : (
-              rows
-                .slice()
-                .sort((a, b) => (a.planned_date < b.planned_date ? -1 : a.planned_date > b.planned_date ? 1 : 0))
-                .map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-900">{item.release}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.customer_site}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.objective}</td>
-                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{formatShortDate(item.planned_date)}</td>
-                  </tr>
-                ))
+              rows.map((item) => (
+                <tr key={item.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3 font-medium text-slate-900">{item.release}</td>
+                  <td className="px-4 py-3 text-slate-700">{item.customer_site}</td>
+                  <td className="px-4 py-3 text-slate-700">{item.objective}</td>
+                  <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{formatPlannedDate(item.planned_date)}</td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

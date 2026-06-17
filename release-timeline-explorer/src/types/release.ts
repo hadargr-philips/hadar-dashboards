@@ -27,6 +27,6 @@ export interface GoLiveItem {
   release: string;
   customer_site: string;
   objective: string;
-  planned_date: string; // YYYY-MM-DD
+  planned_date: string; // Supports exact dates and planning labels (for example Q4, In progress)
   created_at: string;
 }

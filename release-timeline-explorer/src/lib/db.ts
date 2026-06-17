@@ -28,7 +28,7 @@ create table if not exists go_lives (
   release text not null,
   customer_site text not null,
   objective text not null,
-  planned_date date not null,
+  planned_date text not null,
   created_at timestamptz default now()
 );
 
