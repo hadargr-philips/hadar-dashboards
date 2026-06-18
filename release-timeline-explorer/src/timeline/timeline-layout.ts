@@ -84,22 +84,12 @@ export function normalizeReleases(releases: Release[], stages: Stage[], months: 
     });
 }
 
-// Layout rule: assign each phase bar to the first lane where it does not overlap with the lane's latest end.
+// Layout rule: each phase bar gets its own dedicated lane (one stage per row for standard timeline layout).
 export function assignPhaseLanes(bars: Omit<TimelinePhaseBar, 'lane'>[]): TimelinePhaseBar[] {
-  const sorted = [...bars].sort((a, b) => a.leftPct - b.leftPct || a.widthPct - b.widthPct);
-  const laneEnd: number[] = [];
-
-  return sorted.map((bar) => {
-    const barEnd = bar.leftPct + bar.widthPct;
-    let lane = 0;
-
-    while (lane < laneEnd.length && bar.leftPct < laneEnd[lane] + 0.25) {
-      lane += 1;
-    }
-
-    laneEnd[lane] = barEnd;
-    return { ...bar, lane };
-  });
+  return bars.map((bar, index) => ({
+    ...bar,
+    lane: index,
+  }));
 }
 
 function getReleaseSubtitle(startDate: string | null, endDate: string | null, phaseCount: number, milestoneCount: number): string {

@@ -16,16 +16,9 @@ function getMilestoneColor(type: 'LR' | 'SP' | 'GSP' | 'FOK'): string {
   return TIMELINE_COLORS.milestone[type] ?? TIMELINE_COLORS.releaseBar[type];
 }
 
-function labelMode(widthPct: number): 'twoLine' | 'oneLine' | 'tooltipOnly' {
-  if (widthPct >= 13) return 'twoLine';
-  if (widthPct >= 7.5) return 'oneLine';
-  return 'tooltipOnly';
-}
-
-function shouldShowFloatingLabel(widthPct: number, label: string): boolean {
-  if (widthPct < 7.5) return true;
-  // Approximation: allow ~1.2 chars per percentage point before clipping dominates readability.
-  return label.length > widthPct * 1.2;
+// Label display strategy: always try to show label + date truncated inside the bar.
+function getBarLabelDisplay(widthPct: number): 'compact' | 'inline' {
+  return widthPct >= 8 ? 'inline' : 'compact';
 }
 
 function RowLabel({ row }: { row: TimelineRow }) {
@@ -58,55 +51,36 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
       <div className="absolute inset-0" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount}))` }} />
 
       {row.phaseBars.map((bar) => {
-        const mode = labelMode(bar.widthPct);
-        const showFloatingLabel = shouldShowFloatingLabel(bar.widthPct, bar.label);
+        const display = getBarLabelDisplay(bar.widthPct);
         const tooltip = `${bar.label} | ${formatDateRange(bar.startDate, bar.endDate)}`;
         const top = TIMELINE_DIMENSIONS.rowVerticalPaddingPx + bar.lane * TIMELINE_DIMENSIONS.phaseLaneHeightPx;
-        const floatingLabelTop = Math.max(0, top - 24);
 
         return (
-          <React.Fragment key={bar.id}>
-            <div
-              className="absolute rounded-lg shadow-sm overflow-hidden"
-              style={{
-                left: `${bar.leftPct}%`,
-                width: `${bar.widthPct}%`,
-                top: `${top}px`,
-                height: `${TIMELINE_DIMENSIONS.barHeightPx}px`,
-                backgroundColor: barColor,
-                color: TIMELINE_COLORS.defaultBarText,
-              }}
-              title={tooltip}
-            >
-              {mode === 'twoLine' && (
-                <div className="h-full flex flex-col items-center justify-center px-2 leading-tight">
-                  <div className="text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
-                  <div className="text-[11px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
-                </div>
-              )}
-              {mode === 'oneLine' && (
-                <div className="h-full px-2 flex flex-col items-center justify-center leading-tight">
-                  <div className="text-[12px] font-semibold text-center w-full truncate">{bar.label}</div>
-                  <div className="text-[10px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
-                </div>
-              )}
-            </div>
-
-            {showFloatingLabel && (
-              <div
-                className="absolute z-10 max-w-[260px] px-2 py-1 rounded border border-slate-300 bg-white/95 backdrop-blur-sm text-slate-700 shadow-sm pointer-events-none"
-                style={{
-                  left: `${bar.leftPct + bar.widthPct / 2}%`,
-                  top: `${floatingLabelTop}px`,
-                  transform: 'translateX(-50%)',
-                }}
-                title={tooltip}
-              >
-                <div className="text-[11px] font-semibold text-center truncate">{bar.label}</div>
-                <div className="text-[10px] text-slate-500 text-center truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
+          <div
+            key={bar.id}
+            className="absolute rounded-lg shadow-sm overflow-hidden flex flex-col items-center justify-center px-2"
+            style={{
+              left: `${bar.leftPct}%`,
+              width: `${bar.widthPct}%`,
+              top: `${top}px`,
+              height: `${TIMELINE_DIMENSIONS.barHeightPx}px`,
+              backgroundColor: barColor,
+              color: TIMELINE_COLORS.defaultBarText,
+            }}
+            title={tooltip}
+          >
+            {display === 'inline' && (
+              <div className="w-full text-center leading-tight">
+                <div className="text-[13px] font-semibold truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{bar.label}</div>
+                <div className="text-[10px] opacity-90 truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{formatDateRange(bar.startDate, bar.endDate)}</div>
               </div>
             )}
-          </React.Fragment>
+            {display === 'compact' && (
+              <div className="w-full text-center leading-tight">
+                <div className="text-[11px] font-semibold truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{bar.label}…</div>
+              </div>
+            )}
+          </div>
         );
       })}
 
