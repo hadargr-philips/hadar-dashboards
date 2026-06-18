@@ -32,6 +32,11 @@ export default function ReleaseList() {
   const sorted = [...releases].sort((a, b) => a.sort_order - b.sort_order);
   const stageCount = (rid: string) => stages.filter(s => s.release_id === rid).length;
 
+  const getMetadataPreview = (release: Release): string[] => {
+    const entries = Object.entries(release.metadata ?? {}).filter(([, value]) => value.trim());
+    return entries.slice(0, 3).map(([key, value]) => `${key}: ${value}`);
+  };
+
   const handleDelete = (id: string) => {
     if (window.confirm('Delete this release and all its stages?')) deleteRelease(id);
   };
@@ -72,7 +77,7 @@ export default function ReleaseList() {
             disabled={uploading}
             className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {uploading ? 'Uploading...' : 'Upload SP/GSP excel'}
+            {uploading ? 'Uploading...' : 'Upload SP/GSP Excel or CSV'}
           </button>
           <button
             onClick={() => setShowAdd(true)}
@@ -99,9 +104,16 @@ export default function ReleaseList() {
               </span>
 
               {/* Number */}
-              <span className="font-mono font-semibold text-sm text-gray-900 flex-1 truncate">
-                {release.number}
-              </span>
+              <div className="flex-1 min-w-0">
+                <span className="block font-mono font-semibold text-sm text-gray-900 truncate">
+                  {release.number}
+                </span>
+                {getMetadataPreview(release).length > 0 && (
+                  <span className="block text-xs text-gray-500 truncate mt-0.5">
+                    {getMetadataPreview(release).join(' | ')}
+                  </span>
+                )}
+              </div>
 
               {/* Stages drill-down */}
               <button
@@ -136,14 +148,21 @@ export default function ReleaseList() {
 
       {showAdd && (
         <ReleaseForm
-          onSave={(number, type) => { addRelease(number, type); setShowAdd(false); }}
+          onSave={(payload) => { addRelease(payload.number, payload.type, payload.metadata); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />
       )}
       {editRelease && (
         <ReleaseForm
           initial={editRelease}
-          onSave={(number, type) => { updateRelease(editRelease.id, { number, type }); setEditRelease(null); }}
+          onSave={(payload) => {
+            updateRelease(editRelease.id, {
+              number: payload.number,
+              type: payload.type,
+              metadata: payload.metadata,
+            });
+            setEditRelease(null);
+          }}
           onCancel={() => setEditRelease(null)}
           title="Edit Release"
         />

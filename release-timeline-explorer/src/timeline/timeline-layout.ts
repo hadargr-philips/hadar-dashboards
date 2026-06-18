@@ -198,6 +198,7 @@ export function buildReleaseRows(releases: Release[], stages: Stage[], months: M
     rows.push({
       key: `release-${item.release.id}`,
       kind: 'release',
+      releaseId: item.release.id,
       type: item.release.type,
       badge: item.release.type,
       title: item.release.number,

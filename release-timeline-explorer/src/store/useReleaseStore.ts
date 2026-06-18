@@ -93,11 +93,13 @@ interface ReleaseStore {
   stages: Stage[];
   goLives: GoLiveItem[];
   selectedReleaseId: string | null;
+  timelineDetailsReleaseId: string | null;
+  collapsedReleaseIds: string[];
 
-  addRelease: (number: string, type: ReleaseType) => void;
+  addRelease: (number: string, type: ReleaseType, metadata?: Record<string, string>) => void;
   importReleases: (incoming: Array<{ number: string; type: ReleaseType }>) => { added: number; skipped: number };
   syncUploadedReleases: (incoming: UploadedReleaseRow[]) => { added: number; updated: number; removed: number; skipped: number };
-  updateRelease: (id: string, patch: Partial<Pick<Release, 'number' | 'type'>>) => void;
+  updateRelease: (id: string, patch: Partial<Pick<Release, 'number' | 'type' | 'metadata'>>) => void;
   deleteRelease: (id: string) => void;
 
   addStage: (releaseId: string, data: Omit<Stage, 'id' | 'release_id' | 'sort_order' | 'created_at'>) => void;
@@ -107,11 +109,16 @@ interface ReleaseStore {
   moveStageDown: (id: string) => void;
 
   selectRelease: (id: string | null) => void;
+  selectTimelineDetailsRelease: (id: string | null) => void;
+  toggleReleaseCollapsed: (id: string) => void;
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────
 export const useReleaseStore = create<ReleaseStore>((set, get) => {
-  const releases = loadFromLS<Release[]>(LS_RELEASES, SEED_RELEASES);
+  const releases = loadFromLS<Release[]>(LS_RELEASES, SEED_RELEASES).map((release) => ({
+    ...release,
+    metadata: release.metadata ?? {},
+  }));
   const stages   = loadFromLS<Stage[]>(LS_STAGES,   SEED_STAGES);
   const goLives  = loadFromLS<GoLiveItem[]>(LS_GOLIVES, SEED_GOLIVES);
 
@@ -120,11 +127,14 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
     stages,
     goLives,
     selectedReleaseId: null,
+    timelineDetailsReleaseId: null,
+    collapsedReleaseIds: [],
 
-    addRelease: (number, type) =>
+    addRelease: (number, type, metadata = {}) =>
       set(s => {
         const next = [...s.releases, {
           id: uid(), number, type,
+          metadata,
           sort_order: s.releases.length + 1,
           created_at: new Date().toISOString(),
         }];
@@ -154,6 +164,7 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
           id: uid(),
           number: r.number,
           type: r.type,
+          metadata: {},
           sort_order: current.length + index + 1,
           created_at: now,
         })),
@@ -206,6 +217,7 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
             id: uid(),
             number: row.number,
             type: row.type,
+            metadata: row.metadata,
             sort_order: nextReleases.length + 1,
             created_at: now,
           };
@@ -228,9 +240,13 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
         }
 
         nextReleases = nextReleases.map(r =>
-          r.id === existing.id ? { ...r, type: row.type } : r
+          r.id === existing.id ? { ...r, type: row.type, metadata: { ...(r.metadata ?? {}), ...row.metadata } } : r
         );
-        releasesByNumber.set(numberKey, { ...existing, type: row.type });
+        releasesByNumber.set(numberKey, {
+          ...existing,
+          type: row.type,
+          metadata: { ...(existing.metadata ?? {}), ...row.metadata },
+        });
 
         const existingReleaseStage = nextStages.find(
           s => s.release_id === existing.id && s.name.trim().toLowerCase() === 'release'
@@ -279,7 +295,14 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
 
     updateRelease: (id, patch) =>
       set(s => {
-        const next = s.releases.map(r => r.id === id ? { ...r, ...patch } : r);
+        const next = s.releases.map(r => {
+          if (r.id !== id) return r;
+          return {
+            ...r,
+            ...patch,
+            metadata: patch.metadata ?? r.metadata ?? {},
+          };
+        });
         persist(next, s.stages);
         return { releases: next };
       }),
@@ -289,7 +312,13 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
         const nextR = s.releases.filter(r => r.id !== id);
         const nextS = s.stages.filter(st => st.release_id !== id);
         persist(nextR, nextS);
-        return { releases: nextR, stages: nextS, selectedReleaseId: null };
+        return {
+          releases: nextR,
+          stages: nextS,
+          selectedReleaseId: null,
+          timelineDetailsReleaseId: s.timelineDetailsReleaseId === id ? null : s.timelineDetailsReleaseId,
+          collapsedReleaseIds: s.collapsedReleaseIds.filter((releaseId) => releaseId !== id),
+        };
       }),
 
     addStage: (releaseId, data) =>
@@ -358,5 +387,17 @@ export const useReleaseStore = create<ReleaseStore>((set, get) => {
       }),
 
     selectRelease: (id) => set({ selectedReleaseId: id }),
+
+    selectTimelineDetailsRelease: (id) => set({ timelineDetailsReleaseId: id }),
+
+    toggleReleaseCollapsed: (id) =>
+      set((s) => {
+        const exists = s.collapsedReleaseIds.includes(id);
+        return {
+          collapsedReleaseIds: exists
+            ? s.collapsedReleaseIds.filter((releaseId) => releaseId !== id)
+            : [...s.collapsedReleaseIds, id],
+        };
+      }),
   };
 });

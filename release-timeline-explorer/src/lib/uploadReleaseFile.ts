@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ReleaseType, StageStatus } from '../types/release';
+import { ReleaseMetadata, ReleaseType, StageStatus } from '../types/release';
 
 export interface UploadedReleaseRow {
   number: string;
@@ -7,10 +7,33 @@ export interface UploadedReleaseRow {
   start_date: string;
   status: StageStatus;
   isReleased: boolean;
+  metadata: ReleaseMetadata;
 }
 
 function normalizeHeader(value: string): string {
   return value.replace(/[\s\\/]+/g, '').toLowerCase();
+}
+
+function toDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return toDateString(value) ?? '';
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  return String(value).trim();
+}
+
+function getColumnKey(headerKeyMap: Map<string, string>, candidates: string[]): string | undefined {
+  for (const candidate of candidates) {
+    const key = headerKeyMap.get(candidate);
+    if (key) return key;
+  }
+  return undefined;
 }
 
 function normalizeType(value: unknown): ReleaseType | null {
@@ -150,14 +173,22 @@ export async function parseReleaseUploadFile(file: File): Promise<UploadedReleas
     headerKeyMap.set(normalizeHeader(key), key);
   }
 
-  const projectKey = headerKeyMap.get('project');
-  const typeKey = headerKeyMap.get('spgsp');
-  const dateKey = headerKeyMap.get('plannedreleasedate');
-  const statusKey = headerKeyMap.get('gspspreleasestatus');
+  const projectKey = getColumnKey(headerKeyMap, [
+    'project',
+    'release',
+    'releasenumber',
+    'releasename',
+    'sp',
+    'gsp',
+  ]);
 
-  if (!projectKey || !typeKey || !dateKey || !statusKey) {
+  const typeKey = getColumnKey(headerKeyMap, ['spgsp', 'type', 'releasetype']);
+  const dateKey = getColumnKey(headerKeyMap, ['plannedreleasedate', 'releasedate', 'date', 'targetdate']);
+  const statusKey = getColumnKey(headerKeyMap, ['gspspreleasestatus', 'status', 'releasestatus']);
+
+  if (!projectKey) {
     throw new Error(
-      'Missing required columns. Expected: Project, SP/GSP, Planned Release date, GSP\\SP Release status.'
+      'Could not detect a release number column. Expected a header like Project, Release, or Release Number.'
     );
   }
 
@@ -165,17 +196,23 @@ export async function parseReleaseUploadFile(file: File): Promise<UploadedReleas
   const seen = new Set<string>();
 
   for (const row of rows) {
-    const project = row[projectKey];
-    const number = typeof project === 'string' ? project.trim() : '';
+    const metadata: ReleaseMetadata = {};
+    for (const [header, value] of Object.entries(row)) {
+      metadata[header] = toDisplayValue(value);
+    }
+
+    const number = toDisplayValue(row[projectKey]);
     if (!number) continue;
 
     const key = number.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const type = normalizeType(row[typeKey]) ?? 'SP';
-    const start_date = toDateString(row[dateKey]) ?? getTodayDateString();
-    const { status, isReleased } = normalizeStatus(row[statusKey]);
+    const type = (typeKey ? normalizeType(row[typeKey]) : null) ?? 'SP';
+    const start_date = (dateKey ? toDateString(row[dateKey]) : null) ?? getTodayDateString();
+    const { status, isReleased } = statusKey
+      ? normalizeStatus(row[statusKey])
+      : ({ status: '', isReleased: false } as { status: StageStatus; isReleased: boolean });
 
     parsedRows.push({
       number,
@@ -183,6 +220,7 @@ export async function parseReleaseUploadFile(file: File): Promise<UploadedReleas
       start_date,
       status,
       isReleased,
+      metadata,
     });
   }
 

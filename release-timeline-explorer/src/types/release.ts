@@ -1,10 +1,13 @@
 export type ReleaseType = 'LR' | 'SP' | 'GSP' | 'FOK';
 export type StageStatus = 'New' | 'In Progress' | 'Planning' | 'Completed' | 'Last Build Testing' | '';
 
+export type ReleaseMetadata = Record<string, string>;
+
 export interface Release {
   id: string;
   number: string;
   type: ReleaseType;
+  metadata?: ReleaseMetadata;
   sort_order: number;
   created_at: string;
 }

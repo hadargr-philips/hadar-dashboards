@@ -50,6 +50,7 @@ export interface NormalizedRelease {
 export interface TimelineReleaseRow {
   key: string;
   kind: 'release';
+  releaseId: string;
   type: ReleaseType;
   badge: string;
   title: string;

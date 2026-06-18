@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { TimelineRow, TimelineReleaseRow, TimelineConsolidatedRow, MonthColumn } from './timeline-types';
 import { TIMELINE_COLORS, TIMELINE_DIMENSIONS } from './timeline-theme';
 import { formatDateRange, formatShortDate } from './timeline-utils';
@@ -6,6 +7,9 @@ import { formatDateRange, formatShortDate } from './timeline-utils';
 interface TimelineRowsProps {
   rows: TimelineRow[];
   months: MonthColumn[];
+  collapsedReleaseIds?: string[];
+  onToggleReleaseCollapse?: (releaseId: string) => void;
+  onConsolidatedReleaseClick?: (releaseId: string) => void;
 }
 
 function getBarColor(releaseType: TimelineReleaseRow['type'], releaseNumber: string): string {
@@ -21,14 +25,31 @@ function getBarLabelDisplay(widthPct: number): 'compact' | 'inline' {
   return widthPct >= 8 ? 'inline' : 'compact';
 }
 
-function RowLabel({ row }: { row: TimelineRow }) {
+interface RowLabelProps {
+  row: TimelineRow;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+function RowLabel({ row, isCollapsed, onToggleCollapse }: RowLabelProps) {
   const badgeClass = TIMELINE_COLORS.typeBadge[row.type] ?? 'bg-slate-100 text-slate-700 ring-slate-200';
+  const isCollapsible = row.kind === 'release';
 
   return (
     <div
       className="flex-shrink-0 border-r border-slate-200 px-4 py-4 bg-white"
       style={{ width: `${TIMELINE_DIMENSIONS.leftColumnPx}px` }}
     >
+      {isCollapsible && (
+        <button
+          onClick={onToggleCollapse}
+          className="mb-2 inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+          title={isCollapsed ? 'Expand release row' : 'Collapse release row'}
+        >
+          {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {isCollapsed ? 'Expand' : 'Collapse'}
+        </button>
+      )}
       <div className={`inline-flex items-center rounded-md ring-1 ring-inset px-2 py-0.5 text-xs font-bold tracking-wide mb-2 ${badgeClass}`}>
         {row.badge}
       </div>
@@ -111,17 +132,25 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
 
 // Layout rule: SP and GSP releases are rendered as milestone diamonds on a single consolidated row,
 // each diamond positioned at the release date. Multiple releases in the same month are spread left-to-right.
-function ConsolidatedRowBody({ row }: { row: TimelineConsolidatedRow }) {
+function ConsolidatedRowBody({
+  row,
+  onReleaseClick,
+}: {
+  row: TimelineConsolidatedRow;
+  onReleaseClick?: (releaseId: string) => void;
+}) {
   const diamondColor = TIMELINE_COLORS.milestone[row.type] ?? TIMELINE_COLORS.releaseBar[row.type];
   return (
     <div className="flex-1 relative" style={{ minHeight: '88px' }}>
       <div className="absolute inset-0" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount}))` }} />
       {row.bars.map((bar) => (
-        <div
+        <button
           key={bar.id}
-          className="absolute flex flex-col items-center"
+          className="absolute flex flex-col items-center rounded-md px-1 py-1 hover:bg-slate-100/70 transition-colors"
           style={{ left: `${bar.leftPct + bar.widthPct / 2}%`, transform: 'translateX(-50%)', top: '12px' }}
           title={`${bar.label} | ${formatShortDate(bar.startDate)}`}
+          onClick={() => onReleaseClick?.(bar.releaseId)}
+          type="button"
         >
           {/* Diamond marker */}
           <div
@@ -138,13 +167,18 @@ function ConsolidatedRowBody({ row }: { row: TimelineConsolidatedRow }) {
           <div className="text-[10px] text-slate-500 whitespace-nowrap mt-0.5">
             {formatShortDate(bar.startDate)}
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
 }
 
-export function TimelineRows({ rows }: TimelineRowsProps) {
+export function TimelineRows({
+  rows,
+  collapsedReleaseIds = [],
+  onToggleReleaseCollapse,
+  onConsolidatedReleaseClick,
+}: TimelineRowsProps) {
   if (rows.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-slate-400 text-sm bg-white">
@@ -157,8 +191,28 @@ export function TimelineRows({ rows }: TimelineRowsProps) {
     <div className="bg-white">
       {rows.map((row) => (
         <div key={row.key} className="flex border-b border-slate-100 last:border-b-0">
-          <RowLabel row={row} />
-          {row.kind === 'release' ? <ReleaseRowBody row={row} /> : <ConsolidatedRowBody row={row} />}
+          <RowLabel
+            row={row}
+            isCollapsed={row.kind === 'release' ? collapsedReleaseIds.includes(row.releaseId) : false}
+            onToggleCollapse={
+              row.kind === 'release'
+                ? () => onToggleReleaseCollapse?.(row.releaseId)
+                : undefined
+            }
+          />
+          {row.kind === 'release' ? (
+            <div
+              className="transition-all duration-200 ease-out overflow-hidden"
+              style={{
+                flex: collapsedReleaseIds.includes(row.releaseId) ? '0 0 0px' : '1 1 auto',
+                opacity: collapsedReleaseIds.includes(row.releaseId) ? 0 : 1,
+              }}
+            >
+              <ReleaseRowBody row={row} />
+            </div>
+          ) : (
+            <ConsolidatedRowBody row={row} onReleaseClick={onConsolidatedReleaseClick} />
+          )}
         </div>
       ))}
     </div>

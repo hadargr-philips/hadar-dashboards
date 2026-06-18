@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, Calendar, Settings } from 'lucide-react';
 import { useReleaseStore } from '../store/useReleaseStore';
 import { buildReleaseRows } from '../timeline/timeline-layout';
@@ -13,17 +13,59 @@ interface Props {
 }
 
 export default function GanttPage({ onBack, onAdmin }: Props) {
-  const { releases, stages, goLives } = useReleaseStore(s => ({
+  const {
+    releases,
+    stages,
+    goLives,
+    timelineDetailsReleaseId,
+    selectTimelineDetailsRelease,
+    collapsedReleaseIds,
+    toggleReleaseCollapsed,
+  } = useReleaseStore(s => ({
     releases: s.releases,
     stages: s.stages,
     goLives: s.goLives,
+    timelineDetailsReleaseId: s.timelineDetailsReleaseId,
+    selectTimelineDetailsRelease: s.selectTimelineDetailsRelease,
+    collapsedReleaseIds: s.collapsedReleaseIds,
+    toggleReleaseCollapsed: s.toggleReleaseCollapsed,
   }));
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const months = useMemo(() => getMonthColumns(new Date(), TIMELINE_DIMENSIONS.monthCount), []);
   const rows = useMemo(() => buildReleaseRows(releases, stages, months), [releases, stages, months]);
+
+  const selectedRelease = useMemo(
+    () => releases.find((release) => release.id === timelineDetailsReleaseId) ?? null,
+    [releases, timelineDetailsReleaseId]
+  );
+  const selectedStages = useMemo(
+    () => stages
+      .filter((stage) => stage.release_id === timelineDetailsReleaseId)
+      .sort((a, b) => a.sort_order - b.sort_order),
+    [stages, timelineDetailsReleaseId]
+  );
 
   const todayPct = useMemo(() => {
     return dateToX(toIsoDate(new Date()), months);
   }, [months]);
+
+  useEffect(() => {
+    if (timelineDetailsReleaseId) {
+      setIsDrawerOpen(true);
+    }
+  }, [timelineDetailsReleaseId]);
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+    window.setTimeout(() => {
+      selectTimelineDetailsRelease(null);
+    }, 180);
+  };
+
+  const openDrawerForRelease = (releaseId: string) => {
+    selectTimelineDetailsRelease(releaseId);
+  };
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: TIMELINE_COLORS.background }}>
@@ -100,8 +142,74 @@ export default function GanttPage({ onBack, onAdmin }: Props) {
               </div>
             )}
 
-            <TimelineRows rows={rows} months={months} />
+            <TimelineRows
+              rows={rows}
+              months={months}
+              collapsedReleaseIds={collapsedReleaseIds}
+              onToggleReleaseCollapse={toggleReleaseCollapsed}
+              onConsolidatedReleaseClick={openDrawerForRelease}
+            />
           </div>
+
+          {(timelineDetailsReleaseId && selectedRelease) && (
+            <section
+              className="mt-4 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden transition-all duration-200 ease-out"
+              style={{
+                opacity: isDrawerOpen ? 1 : 0,
+                transform: isDrawerOpen ? 'translateY(0)' : 'translateY(6px)',
+                maxHeight: isDrawerOpen ? '680px' : '0px',
+              }}
+            >
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Release Details</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">{selectedRelease.number} ({selectedRelease.type})</p>
+                </div>
+                <button
+                  onClick={closeDrawer}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-4 p-4">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">Release Fields</h3>
+                  <div className="space-y-1.5 text-sm">
+                    <p><span className="font-semibold text-slate-700">Number:</span> <span className="text-slate-900">{selectedRelease.number}</span></p>
+                    <p><span className="font-semibold text-slate-700">Type:</span> <span className="text-slate-900">{selectedRelease.type}</span></p>
+                    <p><span className="font-semibold text-slate-700">Created:</span> <span className="text-slate-900">{selectedRelease.created_at.slice(0, 10)}</span></p>
+                    {Object.entries(selectedRelease.metadata ?? {}).map(([key, value]) => (
+                      <p key={key}>
+                        <span className="font-semibold text-slate-700">{key}:</span>{' '}
+                        <span className="text-slate-900">{value || '-'}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">Stage and Milestone Details</h3>
+                  {selectedStages.length === 0 ? (
+                    <p className="text-sm text-slate-400">No stage details found for this release.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-auto pr-1">
+                      {selectedStages.map((stage) => (
+                        <div key={stage.id} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                          <p className="text-sm font-semibold text-slate-900">{stage.name}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">Status: {stage.status || '-'}</p>
+                          <p className="text-xs text-slate-600">Start: {stage.start_date} | End: {stage.end_date ?? 'Milestone'}</p>
+                          <p className="text-xs text-slate-600">Dependencies: {stage.dependencies || '-'}</p>
+                          <p className="text-xs text-slate-600">Comments: {stage.comments || '-'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           <TimelineGoLivesTable rows={goLives} />
         </div>
