@@ -27,6 +27,12 @@ export const TIMELINE_COLORS = {
     GSP: '#92400e',
     FOK: '#6d28d9',
   } as Record<ReleaseType, string>,
+  milestone: {
+    LR: '#1e3a8a',
+    SP: '#b7472a',
+    GSP: '#5b5fc7',
+    FOK: '#6d28d9',
+  } as Record<ReleaseType, string>,
   specialReleaseBars: {
     '15.1.2.0': '#1e3a8a',
     '12.2.8.750': '#15803d',

@@ -12,10 +12,20 @@ function getBarColor(releaseType: TimelineReleaseRow['type'], releaseNumber: str
   return TIMELINE_COLORS.specialReleaseBars[releaseNumber] ?? TIMELINE_COLORS.releaseBar[releaseType];
 }
 
+function getMilestoneColor(type: 'LR' | 'SP' | 'GSP' | 'FOK'): string {
+  return TIMELINE_COLORS.milestone[type] ?? TIMELINE_COLORS.releaseBar[type];
+}
+
 function labelMode(widthPct: number): 'twoLine' | 'oneLine' | 'tooltipOnly' {
   if (widthPct >= 13) return 'twoLine';
   if (widthPct >= 7.5) return 'oneLine';
   return 'tooltipOnly';
+}
+
+function shouldShowFloatingLabel(widthPct: number, label: string): boolean {
+  if (widthPct < 7.5) return true;
+  // Approximation: allow ~1.2 chars per percentage point before clipping dominates readability.
+  return label.length > widthPct * 1.2;
 }
 
 function RowLabel({ row }: { row: TimelineRow }) {
@@ -49,33 +59,54 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
 
       {row.phaseBars.map((bar) => {
         const mode = labelMode(bar.widthPct);
+        const showFloatingLabel = shouldShowFloatingLabel(bar.widthPct, bar.label);
         const tooltip = `${bar.label} | ${formatDateRange(bar.startDate, bar.endDate)}`;
         const top = TIMELINE_DIMENSIONS.rowVerticalPaddingPx + bar.lane * TIMELINE_DIMENSIONS.phaseLaneHeightPx;
+        const floatingLabelTop = Math.max(0, top - 24);
 
         return (
-          <div
-            key={bar.id}
-            className="absolute rounded-lg shadow-sm overflow-hidden"
-            style={{
-              left: `${bar.leftPct}%`,
-              width: `${bar.widthPct}%`,
-              top: `${top}px`,
-              height: `${TIMELINE_DIMENSIONS.barHeightPx}px`,
-              backgroundColor: barColor,
-              color: TIMELINE_COLORS.defaultBarText,
-            }}
-            title={tooltip}
-          >
-            {mode === 'twoLine' && (
-              <div className="h-full flex flex-col items-center justify-center px-2 leading-tight">
-                <div className="text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
-                <div className="text-[11px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
+          <React.Fragment key={bar.id}>
+            <div
+              className="absolute rounded-lg shadow-sm overflow-hidden"
+              style={{
+                left: `${bar.leftPct}%`,
+                width: `${bar.widthPct}%`,
+                top: `${top}px`,
+                height: `${TIMELINE_DIMENSIONS.barHeightPx}px`,
+                backgroundColor: barColor,
+                color: TIMELINE_COLORS.defaultBarText,
+              }}
+              title={tooltip}
+            >
+              {mode === 'twoLine' && (
+                <div className="h-full flex flex-col items-center justify-center px-2 leading-tight">
+                  <div className="text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
+                  <div className="text-[11px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
+                </div>
+              )}
+              {mode === 'oneLine' && (
+                <div className="h-full px-2 flex flex-col items-center justify-center leading-tight">
+                  <div className="text-[12px] font-semibold text-center w-full truncate">{bar.label}</div>
+                  <div className="text-[10px] opacity-85 text-center w-full truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
+                </div>
+              )}
+            </div>
+
+            {showFloatingLabel && (
+              <div
+                className="absolute z-10 max-w-[260px] px-2 py-1 rounded border border-slate-300 bg-white/95 backdrop-blur-sm text-slate-700 shadow-sm pointer-events-none"
+                style={{
+                  left: `${bar.leftPct + bar.widthPct / 2}%`,
+                  top: `${floatingLabelTop}px`,
+                  transform: 'translateX(-50%)',
+                }}
+                title={tooltip}
+              >
+                <div className="text-[11px] font-semibold text-center truncate">{bar.label}</div>
+                <div className="text-[10px] text-slate-500 text-center truncate">{formatDateRange(bar.startDate, bar.endDate)}</div>
               </div>
             )}
-            {mode === 'oneLine' && (
-              <div className="h-full px-2 flex items-center justify-center text-[13px] font-semibold text-center w-full truncate">{bar.label}</div>
-            )}
-          </div>
+          </React.Fragment>
         );
       })}
 
@@ -94,8 +125,9 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
             style={{ left: `${milestone.leftPct}%`, transform: 'translateX(-50%)', top: '8px' }}
             title={`${milestone.label} | ${formatShortDate(milestone.date)}`}
           >
-            <div className="w-4 h-4 rotate-45 rounded-[2px]" style={{ backgroundColor: barColor }} />
+            <div className="w-4 h-4 rotate-45 rounded-[2px]" style={{ backgroundColor: getMilestoneColor(row.type) }} />
             <div className="text-[11px] text-slate-700 font-medium mt-1 whitespace-nowrap -translate-x-1/2">{milestone.label}</div>
+            <div className="text-[10px] text-slate-500 whitespace-nowrap -translate-x-1/2">{formatShortDate(milestone.date)}</div>
           </div>
         ))}
       </div>
@@ -106,7 +138,7 @@ function ReleaseRowBody({ row }: { row: TimelineReleaseRow }) {
 // Layout rule: SP and GSP releases are rendered as milestone diamonds on a single consolidated row,
 // each diamond positioned at the release date. Multiple releases in the same month are spread left-to-right.
 function ConsolidatedRowBody({ row }: { row: TimelineConsolidatedRow }) {
-  const diamondColor = TIMELINE_COLORS.releaseBar[row.type];
+  const diamondColor = TIMELINE_COLORS.milestone[row.type] ?? TIMELINE_COLORS.releaseBar[row.type];
   return (
     <div className="flex-1 relative" style={{ minHeight: '88px' }}>
       <div className="absolute inset-0" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount} - 1px), ${TIMELINE_COLORS.monthGrid} calc(100% / ${TIMELINE_DIMENSIONS.monthCount}))` }} />
@@ -128,6 +160,9 @@ function ConsolidatedRowBody({ row }: { row: TimelineConsolidatedRow }) {
             style={{ color: diamondColor }}
           >
             {bar.label}
+          </div>
+          <div className="text-[10px] text-slate-500 whitespace-nowrap mt-0.5">
+            {formatShortDate(bar.startDate)}
           </div>
         </div>
       ))}

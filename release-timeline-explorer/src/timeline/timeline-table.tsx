@@ -17,13 +17,13 @@ function formatPlannedDate(value: string): string {
 export function TimelineGoLivesTable({ rows }: TimelineTableProps) {
   return (
     <section className="mt-6 bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-        <h2 className="text-sm font-bold text-slate-800 tracking-wide">GO-LIVES</h2>
+      <div className="px-4 py-3 border-b border-blue-900 bg-blue-900">
+        <h2 className="text-sm font-bold text-white tracking-wide">GO-LIVES</h2>
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wide">
+          <thead className="bg-blue-900 text-white text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-3">Release</th>
               <th className="text-left px-4 py-3">Customer (Site)</th>
