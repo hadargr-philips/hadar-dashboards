@@ -5,8 +5,12 @@ import AdminPage from './components/AdminPage';
 
 type Page = 'home' | 'gantt';
 
+function getInitialPageFromHash(): Page {
+  return window.location.hash === '#gantt' ? 'gantt' : 'home';
+}
+
 export default function App() {
-  const [page,    setPage]    = useState<Page>('home');
+  const [page,    setPage]    = useState<Page>(getInitialPageFromHash);
   const [isAdmin, setIsAdmin] = useState(() => window.location.hash === '#admin');
 
   useEffect(() => {
@@ -22,6 +26,7 @@ export default function App() {
         setPage('home');
       }
     };
+    onHash();
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
